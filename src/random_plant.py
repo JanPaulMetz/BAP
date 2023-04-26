@@ -27,9 +27,11 @@ def generate_discrete_tf(sample_rate):
     # Continuous time 
     # num = np.array([1 ,0.5 ,0.5]) 
     # den = np.array([1 ,0.3 ,0.6])
+    num,den = signal.butter(2, [2*153/sample_rate],btype='lowpass', fs = sample_rate)
+    print("num, den: ", num, den)
     # Low pass:
-    num = np.array([1])
-    den = np.array([1,1])
+    # num = np.array([1])
+    # den = np.array([1,1])
     random_tf = signal.TransferFunction(num, den)
     # Discrete time 
     random_tf_discrete = random_tf.to_discrete(1/sample_rate)
