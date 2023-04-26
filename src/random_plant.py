@@ -35,6 +35,7 @@ w =fftfreq(x.size, 1/f_s)
 t_simulate = np.linspace(0,duration, len(u_discrete))
 sim = signal.dlsim(random_TF_discrete, u_discrete, t_simulate)
 
+
 plt.figure(1)
 plt.plot(sim[0],sim[1])
 plt.show()
