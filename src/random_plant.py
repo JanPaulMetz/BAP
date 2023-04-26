@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+# #!/usr/bin/python3
 import scipy as sc
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,22 +21,20 @@ random_TF = signal.TransferFunction(num, den)
 # Generate sine 
 t = np.linspace(0, 100, 500)
 f = 100
-f_s = 10_000
+f_s = 1000
 duration = 1
-x, y = generate_sine(f,f_s, duration)
+x, u_continuous = generate_sine(f,f_s, duration)
 
 # FFT 
-Y = abs(fft(y)) 
-w = abs(fftfreq(x.size, 1/f_s) )
+random_TF_discrete = random_TF.to_discrete(1/f_s)
+u_discrete = fft(u_continuous)
+w_abs = abs(fftfreq(x.size, 1/f_s) )
+w =fftfreq(x.size, 1/f_s)
 
-# Product of Y*TF 
-output = Y*random_TF 
-# plt.figure(1)
-# plt.plot(x,y)
-# plt.show()
+# Simulate TF with signal u. len(t) should be equal to len(u_discrete)
+t_simulate = np.linspace(0,duration, len(u_discrete))
+sim = signal.dlsim(random_TF_discrete, u_discrete, t_simulate)
 
-
-
-# plt.figure(2)
-# plt.stem(w,Y)
-# plt.show() 
+plt.figure(1)
+plt.plot(sim[0],sim[1])
+plt.show()
