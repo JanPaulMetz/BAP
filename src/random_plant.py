@@ -1,11 +1,8 @@
-# #!/usr/bin/python3
-import scipy as sc
 import numpy as np
-import matplotlib.pyplot as plt
-
 from scipy import signal 
-from scipy.fft import fft, ifft, fftfreq
+from scipy.fft import fft, fftfreq
 
+import matplotlib.pyplot as plt
 def generate_discrete_sine(freq, sample_rate, duration): 
     x = np.linspace(0, duration, sample_rate * duration, endpoint=False)
     frequencies = x * freq
@@ -36,28 +33,27 @@ def generate_discrete_tf(sample_rate):
     return random_TF_discrete
 
 
-"""" EXAMPLE: 
-# Set signal properties
-t = np.linspace(0, 100, 500)
-f = 100
-f_s = 1000
-duration = 10
+# # EXAMPLE: 
+# # Set signal properties
+# t = np.linspace(0, 100, 500)
+# f = 100
+# f_s = 1000
+# duration = 10
 
-# Generate TF 
-random_TF_discrete = generate_discrete_tf(f_s)
+# # Generate TF 
+# random_TF_discrete = generate_discrete_tf(f_s)
 
-# Generate sine cont
-t, u_t = generate_discrete_sine(f, f_s, duration)
+# # Generate sine time
+# t, u_t = generate_discrete_sine(f, f_s, duration)
 
-# Generate sine discrete from cont (Not needed for simulation)
-omega, u_w = calculate_signal_fft(t,u_t,f_s)
+# # Generate sine freq from time (Not needed for simulation)
+# omega, u_w = calculate_signal_fft(t,u_t,f_s)
 
-# Simulate TF with signal u_t. len(t) should be equal to len(u_discrete)
-t_simulate = np.linspace(0,duration, len(u_t))
-sim = signal.dlsim(random_TF_discrete, u_t, t_simulate)
+# # Simulate TF with signal u_t. len(t) should be equal to len(u_discrete)
+# t_simulate = np.linspace(0,duration, len(u_t))
+# sim = signal.dlsim(random_TF_discrete, u_t, t_simulate)
 
-# Plot 
-plt.figure(1)
-plt.plot(sim[0],sim[1])
-plt.show()
-"""
+# # Plot 
+# plt.figure(1)
+# plt.plot(sim[0],sim[1])
+# plt.show()
