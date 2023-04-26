@@ -1,0 +1,5 @@
+1. random_plant.py:
+Convert the current version into one or multiple functions that can be used by training algorithms. 
+
+2. polynomial_model.py:
+Make a training model with the data obtained by a random TF e.g. use functions provided in random_plant.py
