@@ -18,18 +18,17 @@ def generate_discrete_sine(freq, sample_rate, duration):
 
 # returs fft of signal and also returns horizontal axis (omega)
 
-
 def calculate_signal_fft(x_signal, y_discrete, sample_rate):
     """Calculate discrete signal fourier transform"""
     u_fft = fft(y_discrete)
     omega = fftfreq(x_signal.size, 1/sample_rate)
 
-    return omega, u_fft
+    return omega, u_fft/(x_signal.size)
 
 # TO DO: randomize this transferfunction generation
 def generate_discrete_tf(sample_rate):
     """Generate a discrete transferfunction."""
-    f_cutoff = 7
+    f_cutoff = 500
     num, den = signal.butter(1, [f_cutoff/2], btype='lowpass', fs=sample_rate)
 
     return num, den

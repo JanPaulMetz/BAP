@@ -1,18 +1,43 @@
 """ Data Processing """
 import matplotlib.pyplot as plt
-from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+
 
 from random_plant import *
+from calculate_transfer import *
+from generate_data import *
 
+#------------ Sweep frequency ------------#
+START = 50
+STOP = 500
+SAMPLE_RATE = 100_000
+N_SWEEPS = 10
+DURATION = 0.1
+N_SAMPLES = int(DURATION*SAMPLE_RATE)
+data_in, data_out, time_axis = frequency_sweep(START,STOP,SAMPLE_RATE,DURATION, N_SWEEPS)
+print("Size data", )
+#------------ Get fft of data ------------#
 
-#------------ Generate data ------------#
-F = 10                              # Hz
-SAMPLE_RATE = 100_000               # 1kHz sample rate
-DURATION = 5                        # 10 seconds
-N_SAMPLES = DURATION*SAMPLE_RATE    # Number of samples
-# t = np.arange(DURATION,step=DURATION/N_SAMPLES)
+data_in_fft = np.empty((N_SWEEPS,N_SAMPLES))
 
-data_in, t_out, data_out = generate_data(F, SAMPLE_RATE, DURATION)
+omega = calculate_signal_fft(time_axis, data_in[0,:], SAMPLE_RATE)[0]
+
+for i in range(N_SWEEPS):
+    data_in_fft[i,:] = np.abs(calculate_signal_fft(time_axis, data_in[i,:], SAMPLE_RATE)[1])
+    max_index = max_amplitude_index(data_in_fft[i,:])
+    print("Max of ", i , max_index, "omega: ", omega[max_index])
+
+fig, ax = plt.subplots(4,2)
+for i in range(4):
+    ax[i,0].stem(omega,np.abs(data_in_fft[i,:]))
+    ax[i,1].plot(time_axis, data_in[i,:])
+plt.show()
+omega_single, single_sided = fft_to_singlesided(omega, data_in_fft[1,:], SAMPLE_RATE, DURATION)
+# print(single_sided)
+plt.figure()
+plt.stem(omega_single,single_sided)
+plt.show()
+print("shape fft: ", data_in_fft.shape)
 
 #------------ Preprocess data ------------#
 fft_in_x, fft_in_y = calculate_signal_fft(t_out, data_in, SAMPLE_RATE)
@@ -30,15 +55,23 @@ fft_out_y = np.array(np.abs(fft_out_y))
 x = fft_in_y[:,np.newaxis]
 y = fft_out_y[:,np.newaxis]
 print(np.shape(x))
+
+#------------ Get features ------------#
+magnitude_response = calculate_transfer_magnitude(fft_in_y, fft_out_y)
+print("Magniutde response: ", magnitude_response)
+
+# plt.figure()
+# plt.stem(magnitude_response)
+# plt.show()
 #------------ Define model ------------#
-linear_model = LinearRegression()
+# poly_model = PolynomialFeatures(degree=10)
 
-#------------ Train model ------------#
-linear_model.fit(x, y)
-score = linear_model.score(x, y)
+# #------------ Train model ------------#
+# PolynomialFeatures.fit(x, y)
+# score = poly_model.score(x, y)
 
-print(score)
-print(linear_model.coef_)
+# print(score)
+# print(poly_model.coef_)
 
 # plt.figure()
 # plt.plot(t,filt, color='r')
