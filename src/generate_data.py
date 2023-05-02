@@ -41,3 +41,8 @@ def fft_to_singlesided(omega, fft_in, sample_rate, duration):
     fft_singlesided = np.append(0,[fft_in[0:index_mid - 1]])
 
     return omega_singlesided, fft_singlesided
+
+def get_max_index(extra, stop_freq, omega):
+    """Get maximum index for good plot resolution"""
+    index = omega.size*(stop_freq+extra)/omega[omega.size-1]
+    return int(index)
