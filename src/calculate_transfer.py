@@ -27,3 +27,27 @@ def calculate_transfer_magnitude(input_fft, output_fft):
     # since right half is mirrored image
     n_samples = 0.5*input_fft.size
     return transfer_function[0:int(n_samples)]
+
+#TODO: CHECK FOR OUTLIERS
+def mean_transfer(transfer_matrix):
+    """Take mean of all non-zero values per column"""
+    mean_transfer_list = []
+    print("SHAPE t matrix", transfer_matrix.shape)
+    for i in range(transfer_matrix.shape[1]): # For all columns 
+        # Copy nonzero row
+        nonzeros_row = transfer_matrix[transfer_matrix[:,i] > 0] # Store all nonzeros
+        # Get nonzero terms
+        nonzeros = nonzeros_row[nonzeros_row > 0]
+        # if empty slice:
+        if len(nonzeros) == 0:
+            nonzeros = 0
+        # MAYBE CHECK FOR OUTLIERS?
+        nonzeros_mean = np.mean(nonzeros)
+        mean_transfer_list.append(nonzeros_mean)
+
+    mean_transfer_array = np.array(mean_transfer_list)
+    # Get zero indeces
+    # zero_ind = np.empty((mean_transfer_array.size),1)
+    nonzero_ind = np.where(mean_transfer_array > 0)
+    # print(zero_ind)
+    return mean_transfer_array, nonzero_ind
