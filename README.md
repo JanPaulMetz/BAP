@@ -6,7 +6,12 @@ Repository structure:
     - README
     - build 
     - CMakeLists.txt
+    - include (can be accessed externally)
+        - BAP 
+            - ....
     - doc
     - libs (included libs for C++)
     - scripts (Python scripts folder)
+        - polynomial ... 
     - src (C++ source folder)
+        - main.cpp 
