@@ -17,3 +17,5 @@ libusb1_backend = usb.backend.libusb1.get_backend(find_library=libusb_package.fi
 # to the backend parameter here. In fact, that function is simply a shorthand for the line
 # above.
 print(list(usb.core.find(find_all=True, backend=libusb1_backend)))
+
+#<DEVICE ID 8086:15ec on Bus 002 Address 000> for the FPGA usb bridge
