@@ -1,0 +1,12 @@
+For the use of this library, most of the time a USB backend has to be used:
+While testing this was done with:
+libusb1_backend = usb.backend.libusb1.get_backend(find_library=libusb_package.find_library)
+
+
+Vendor and Product ids of different usb devices used for testing:
+Alchitry board:
+Decimal VendorID=1027 & ProductID=24606
+Hexadecimal VendorID=0x403 & ProductID=0x601e
+Bluetooth mouse:
+Decimal VendorID=1133 & ProductID=50479
+Hexadecimal VendorID=0x46d & ProductID=0xc52f
