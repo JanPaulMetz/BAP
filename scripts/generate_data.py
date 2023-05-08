@@ -37,10 +37,15 @@ def fft_to_singlesided(omega, fft_in, sample_rate, duration):
     omega_singlesided = np.empty((omega.shape))
     index_mid = int(sample_rate*duration/2)
     index_end = int(sample_rate*duration)
-    omega_singlesided = np.append(0,[omega[0:index_mid - 1]])
-    fft_singlesided = np.append(0,[fft_in[0:index_mid - 1]])
+    print("omeg0", omega)
+    # print("omega1", omega[0:index_mid])
+    omega_singlesided = np.copy([omega[0:index_mid]])#)np.append(0,[omega[0:index_mid]]) # 0
+    # print("size omega", omega_singlesided.shape)
+    
+    fft_singlesided = np.append(0,[fft_in[0:index_mid]])
 
-    return omega_singlesided, fft_singlesided
+    # print("return", omega_singlesided[0,:])
+    return omega_singlesided[0,:], fft_singlesided
 
 def get_max_index(extra, stop_freq, omega):
     """Get maximum index for good plot resolution"""

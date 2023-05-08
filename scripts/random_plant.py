@@ -28,9 +28,32 @@ def calculate_signal_fft(x_signal, y_discrete, sample_rate):
 # TO DO: randomize this transferfunction generation
 def generate_discrete_tf(sample_rate):
     """Generate a discrete transferfunction."""
-    f_cutoff = 40_000
-    num, den = signal.butter(1, [f_cutoff/2], btype='lowpass', fs=sample_rate)
-
+    f_cutoff = 20_000
+    w = f_cutoff / (sample_rate / 2)
+    num, den = signal.butter(1, [f_cutoff], btype='lowpass', analog=False, fs=sample_rate)
+    
+    # # PRINT 
+    # plt.figure()
+    # w, h = signal.freqs(num, den) #np.unwrap
+    # plt.semilogx(w, 20 * (np.angle(h)), ls='dashed')
+    # plt.title('Bessel filter magnitude response (with Butterworth)')
+    # plt.xlabel('Frequency [radians / second]')
+    # plt.ylabel('Amplitude [dB]')
+    # plt.margins(0, 0.1)
+    # plt.grid(which='both', axis='both')
+    # plt.axvline(100, color='green')  # cutoff frequency
+    # plt.show()
+    # # b, a = signal.bessel(4, 100, 'low', analog=True, norm='phase')
+    # # w, h = signal.freqs(b, a)
+    # plt.figure()
+    # plt.semilogx(w, 20 * np.log10(np.abs(h)))
+    # plt.title('Bessel filter magnitude response (with Butterworth)')
+    # plt.xlabel('Frequency [radians / second]')
+    # plt.ylabel('Amplitude [dB]')
+    # plt.margins(0, 0.1)
+    # plt.grid(which='both', axis='both')
+    # plt.axvline(100, color='green')  # cutoff frequency
+    # plt.show()
     return num, den
 
 def generate_data(frequency, sample_rate, duration):
@@ -53,6 +76,7 @@ def test():
     plt.plot(time_axis,data, 'r')
     plt.show()
 
+generate_discrete_tf(10_000_000)
 # # EXAMPLE:
 # import matplotlib.pyplot as plt
 # # Set signal properties
