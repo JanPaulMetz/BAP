@@ -28,7 +28,7 @@ def calculate_signal_fft(x_signal, y_discrete, sample_rate):
 # TO DO: randomize this transferfunction generation
 def generate_discrete_tf(sample_rate):
     """Generate a discrete transferfunction."""
-    f_cutoff = 20_000
+    f_cutoff = 10_000
     w = f_cutoff / (sample_rate / 2)
     num, den = signal.butter(1, [f_cutoff], btype='lowpass', analog=False, fs=sample_rate)
     

@@ -102,10 +102,7 @@ def get_transfer(time_axis, data_in, data_out, sample_rate, stop_freq, duration)
     phase_response_mean = phase_response_mean[nonzero_ind_phase]
     
     # Get nonzero omega axis
-    print(omega_single_out.size)
-    print("OMEGA: ", omega_single_out)
     omega_magnitude_response = omega_single_out[nonzero_ind_magnitude]
-    print("OMEGA SINGLE", omega_magnitude_response)
     omega_phase_response = omega_single_out[nonzero_ind_phase]
 
     return magnitude_response_mean, omega_magnitude_response, phase_response_mean, omega_phase_response
