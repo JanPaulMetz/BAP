@@ -18,7 +18,7 @@ def calculate_transfer_magnitude(input_fft, output_fft):
 
     # H(s) = Y(s)/X(s)
     nonzero_transfer_function = np.divide(output_fft[nonzero_indices], input_fft[nonzero_indices])
-    transfer_function = np.zeros(np.shape(input_fft), dtype='complex_')
+    transfer_function = np.zeros(np.shape(input_fft))#, dtype='complex_'
 
     j_max = nonzero_transfer_function.size
     i = 0
@@ -48,7 +48,7 @@ def calculate_transfer_phase(input_fft, output_fft):
     nonzero_phase = np.arctan(np.divide(np.imag(nonzero_transfer_function), np.real(nonzero_transfer_function)))
     # nonzero_phase = np.angle(nonzero_transfer_function)
     # print("nonzero phase", nonzero_phase)
-    transfer_function = np.zeros(np.shape(input_fft), dtype='complex_')
+    transfer_function = np.zeros(np.shape(input_fft))#, dtype='complex_'
 
     j_max = nonzero_transfer_function.size
     i = 0
@@ -76,7 +76,7 @@ def get_transfer(time_axis, data_in, data_out, sample_rate, stop_freq, duration)
     # Init arrays: SIZE!!
     data_in_fft = np.empty((n_sweeps,n_samples), dtype='complex_')
     data_out_fft = np.empty((n_sweeps,n_samples),dtype='complex_')
-    magnitude_response = np.empty((n_samples, int(0.5*n_samples)))
+    magnitude_response = np.empty((n_samples, int(0.5*n_samples)))#, dtype='complex_'
     phase_response = np.empty((n_samples, int(0.5*n_samples)))
 
     # Calculate fft and then magnitude and frequency response
