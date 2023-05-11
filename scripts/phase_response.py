@@ -22,11 +22,15 @@ num, den = signal.butter(1, [f_cutoff], analog=False,btype='lowpass', fs=SAMPLE_
 mag_resp, ind_mag, phase_resp, ind_phase = get_transfer(time_axis, data_in, data_out, SAMPLE_RATE, STOP, DURATION)
 w,h = signal.freqz(num, den)
 w = np.linspace(0, SAMPLE_RATE/2, num=512)
-fit = np.polyfit(ind_mag,mag_resp, deg=10)
+fit = np.polyfit(ind_mag,mag_resp, deg=2)
 mag_fit = np.polyval(fit, w)
+print("weights: ", fit)
+
 fit = np.polyfit(ind_phase, phase_resp, deg=10)
 phase_fit = np.polyval(fit, w)
 figure, ax = plt.subplots(2,1)
+
+
 # Plot magnitude response 
 ax[0].semilogx(ind_mag, (20*np.log10(np.abs(mag_resp))), color='r',label='Calculated Response')
 ax[0].plot(w, (20*np.log10(np.abs(mag_fit))), color='y',marker='o', label='Fit')

@@ -67,6 +67,26 @@ def generate_data(frequency, sample_rate, duration):
     filt = signal.lfilter(num, den, signal_t)
     return signal_t, time_axis, filt  # MOCK DATA
 
+def nonlinear_system(frequency, power):
+    """Generate nonlinear system with power and frequency dependency"""
+    f = frequency
+    p = power
+    w0 = 2.16536024e-10
+    w1 = -2.77870690e-05
+    w2 = 9.58644453e-01
+    weights = np.array([w0, w1, w2, 10000])
+    f = np.array([np.ones(f.shape), f, f**2, p**2])
+    
+    transfer = np.multiply(f.T,weights)
+    # Sum all "features" to get data points
+    transfer = np.sum(transfer, axis=2)
+    # Turn around freq and p to compensate for ^
+    transfer = transfer.T
+    # transfer_freq = 1*f + 0.05*f**2 + 0.03*f**3
+    # transfer_power = 1*p + 0.05*p**2 + 0.03*p**3
+    # transfer = transfer_freq + transfer_power
+    return transfer#, np.array([f,p])
+
 #  TEST
 def test():
     """For testing purposes"""
