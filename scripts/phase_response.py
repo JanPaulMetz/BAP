@@ -21,24 +21,25 @@ num, den = signal.butter(1, [f_cutoff], analog=False,btype='lowpass', fs=SAMPLE_
 
 mag_resp, ind_mag, phase_resp, ind_phase = get_transfer(time_axis, data_in, data_out, SAMPLE_RATE, STOP, DURATION)
 w,h = signal.freqz(num, den)
-w = np.linspace(0, SAMPLE_RATE/2, num=512)
-fit = np.polyfit(ind_mag,mag_resp, deg=2)
-mag_fit = np.polyval(fit, w)
+w_log = np.logspace(1,np.log10(SAMPLE_RATE/2), num=512)# np.linspace(0, SAMPLE_RATE/2, num=512)
+w_lin = np.linspace(0,SAMPLE_RATE/2, num=512)
+fit = np.polyfit(ind_mag,mag_resp, deg=3)
+mag_fit = np.polyval(fit, w_log)
 print("weights: ", fit)
 
-fit = np.polyfit(ind_phase, phase_resp, deg=10)
-phase_fit = np.polyval(fit, w)
+fit = np.polyfit(ind_phase, phase_resp, deg=2)
+phase_fit = np.polyval(fit, w_log)
 figure, ax = plt.subplots(2,1)
 
 
-# Plot magnitude response 
-ax[0].semilogx(ind_mag, (20*np.log10(np.abs(mag_resp))), color='r',label='Calculated Response')
-ax[0].plot(w, (20*np.log10(np.abs(mag_fit))), color='y',marker='o', label='Fit')
-ax[0].semilogx(w,  20*np.log10(np.abs(h)), ls='dashed', label='Simulated Response')
+# Plot magnitude response
+ax[0].scatter(ind_mag, (20*np.log10(np.abs(mag_resp))), marker='.',color='r',label='Calculated Response')
+# ax[0].scatter(w_log, (20*np.log10(np.abs(mag_fit))), color='y',marker='.', label='Fit')
+ax[0].semilogx(w_lin,  20*np.log10(np.abs(h)), ls='dashed', label='Simulated Response')
 # Plot phase response
-ax[1].semilogx(ind_phase,np.rad2deg(phase_resp), color='red', label='Calculated Response')
-ax[1].plot(w,np.rad2deg(phase_fit), color='y',marker='o', label='Fit')
-ax[1].semilogx(w, np.rad2deg(np.unwrap(np.angle(h))), ls='dashed', label='Simulated Response')
+ax[1].scatter(ind_phase,np.rad2deg(phase_resp), color='red', label='Calculated Response')
+ax[1].plot(w_log,np.rad2deg(phase_fit), color='y',marker='.', label='Fit')
+ax[1].semilogx(w_lin, np.rad2deg(np.unwrap(np.angle(h))), ls='dashed', label='Simulated Response')
 # Plot lines at -3dB 
 ax[0].axvline(f_cutoff, ls='dashed', color='green')
 ax[0].axhline(-3, ls='dashed', color='green')

@@ -29,18 +29,18 @@ def frequency_sweep(start, stop, sample_rate, duration, n_sweeps):
             sweeped_data_out[i, :] = data_out
             sweeped_data_in[i, :] = data_in
         i += 1
-    # return sweeped_data_in, sweeped_data_out, time_axis
-
-    for frequency in range(start, stop, step_size):
-        print("f", frequency)
-        # For each frequency generate a singal sequence and store in sweeped
-        data_in, time_axis, data_out = generate_data(frequency, sample_rate, duration)
-        # Make sure index inside bounds (step_size)
-        if i < step_size:
-            sweeped_data_out[i, :] = data_out
-            sweeped_data_in[i, :] = data_in
-        i += 1
     return sweeped_data_in, sweeped_data_out, time_axis
+
+    # for frequency in range(start, stop, step_size):
+    #     print("f", frequency)
+    #     # For each frequency generate a singal sequence and store in sweeped
+    #     data_in, time_axis, data_out = generate_data(frequency, sample_rate, duration)
+    #     # Make sure index inside bounds (step_size)
+    #     if i < step_size:
+    #         sweeped_data_out[i, :] = data_out
+    #         sweeped_data_in[i, :] = data_in
+    #     i += 1
+    # return sweeped_data_in, sweeped_data_out, time_axis
 
 def max_amplitude_index(data):
     """Get index of max amplitude"""
