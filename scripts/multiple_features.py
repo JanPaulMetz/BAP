@@ -1,4 +1,4 @@
-"""This module is ment for playing around with radial basis functions"""
+"""Adding second feature fit"""
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import RBFInterpolator
