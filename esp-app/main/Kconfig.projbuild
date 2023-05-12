@@ -18,3 +18,9 @@ menu "UART Config"
         default 3
 
 endmenu
+
+menu "SPI FLASH BEUNSESSIE"
+    config SPI_FLASH_WRITE_CHUNK_SIZE 
+        int "Flash size"
+        default 16384
+endmenu
