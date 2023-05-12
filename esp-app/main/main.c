@@ -74,7 +74,7 @@ int app_main(void)
         int length = 0;
         ESP_ERROR_CHECK(uart_get_buffered_data_len(uart_num, (size_t*)&length));
         length = uart_read_bytes(uart_num, data, length, 100);
-        if(length>101){
+        if(length>99){
             gpio_set_level(GPIO_NUM_2, 1); //Put the blue LED on.
         }
         //Write back data to UART.

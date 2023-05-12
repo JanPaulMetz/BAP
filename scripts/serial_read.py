@@ -9,7 +9,7 @@ ser = serial.Serial(port="COM5",
 
 # ser.open()
 # b = bytes()
-MESSAGE = 'Boodschap!'
+MESSAGE = 'message'
 while 1:
     ser.write((MESSAGE + '\n').encode())
     time.sleep(0.1)
