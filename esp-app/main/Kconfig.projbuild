@@ -6,3 +6,15 @@ menu "ADC Config"
         default 0
 
 endmenu 
+
+menu "UART Config"
+
+    config RX_pin
+        int "RX pin number"
+        default 1
+
+    config TX_pin 
+        int "TX pin number"
+        default 3
+
+endmenu
