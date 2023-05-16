@@ -2,11 +2,23 @@
 Python GUI.
 """
 import sys
+from time import sleep
+from startup_procedure_pc import get_mcu_confirmation, send_mcu_start_message
+
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtCore import QUrl
 
+COMPORT = "COM5"
+
+def stop_button():
+    """read if the stop button is clicked"""
+    #read stop_button from user interface
+    clicked = False
+    return clicked
+
 class MapWindow(QMainWindow):
+    """Making a GUI"""
     def __init__(self):
         super().__init__()
 
@@ -21,13 +33,13 @@ class MapWindow(QMainWindow):
         # Create a QWebEngineView object to show the map
         self.map_view = QWebEngineView(self.map_widget)
         self.map_view.setGeometry(0, 0, 800, 500)
-        self.map_view.load(QUrl("https://www.google.com/maps/"))
+        self.map_view.load(QUrl("https://ishettijdvoorbier.com/"))
 
         # Create the five buttons
-        self.button1 = QPushButton("Button 1", self)
+        self.button1 = QPushButton("STOP", self)
         self.button1.setGeometry(50, 530, 100, 50)
 
-        self.button2 = QPushButton("Button 2", self)
+        self.button2 = QPushButton("START", self)
         self.button2.setGeometry(170, 530, 100, 50)
 
         self.button3 = QPushButton("Button 3", self)
@@ -40,17 +52,42 @@ class MapWindow(QMainWindow):
         self.button5.setGeometry(530, 530, 100, 50)
 
         # Connect the buttons to their respective functions
-        self.button1.clicked.connect(self.button1_clicked)
-        self.button2.clicked.connect(self.button2_clicked)
+        self.button1.clicked.connect(self.stop_button_clicked)
+        self.button2.clicked.connect(self.start_button_clicked)
         self.button3.clicked.connect(self.button3_clicked)
         self.button4.clicked.connect(self.button4_clicked)
         self.button5.clicked.connect(self.button5_clicked)
 
-    def button1_clicked(self):
-        print("Button 1 clicked")
+    #Button methods
+    #TODO: FPGA AND MCU HANDLING TO STOP
+    def stop_button_clicked(self):
+        """If stop button is pressed, the program will exit"""
+        sys.exit()
 
-    def button2_clicked(self):
+    def start_button_clicked(self):
+        """Startup button to start startup sequence"""
+        max_attempts = 10
+        count = 0
+        
         print("Button 2 clicked")
+        while check_buffer_content() is not None:
+            sleep(0.1)
+
+        while count<max_attempts:
+            send_mcu_start_message(COMPORT)
+            return_message = get_mcu_confirmation(COMPORT)
+            if return_message is not None:
+                break
+            count += 1
+        if return_message is None:
+            print("Could not establish connection with MCU.")
+            sys.exit()
+        elif return_message == "start":   #TODO: change start message.
+            print("Connection established")
+            return
+        else:
+            print("that was not the message we expected, aborting")
+            sys.exit()
 
     def button3_clicked(self):
         print("Button 3 clicked")
