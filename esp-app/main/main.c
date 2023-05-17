@@ -21,7 +21,7 @@ const uart_port_t uart_num = UART_NUM_0;
 static void init_led(void)
 {
     gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT); //Set the pin direction of the led(pin2) to out. 
-    gpio_set_level(GPIO_NUM_2, 0); //Put the blue LED(pin2) off. 
+    gpio_set_level(GPIO_NUM_2, 0); //Put the blue LED(pin2) on. 
 }
 
 static void init_uart(void)
@@ -45,15 +45,6 @@ static void init_uart(void)
 
     ESP_ERROR_CHECK(uart_set_pin(UART_NUM_0, 1, 3, 18, 19));
 
-
-
-    //Blink Led
-    vTaskDelay(2000/portTICK_PERIOD_MS);
-    gpio_set_level(GPIO_NUM_2, 0); //Put the blue LED off.
-    //Configure UART parameters
-    vTaskDelay(2000/portTICK_PERIOD_MS);
-    gpio_set_level(GPIO_NUM_2, 0); //Put the blue LED off.
-
 }
 
 
@@ -64,39 +55,35 @@ int app_main(void)
     init_uart();
     //char* message = "Nog geen echo";
     
+    // uint8_t start_message = (uint8_t)11111111;
+
+    
+
     while (1)
     {
-        //gpio_set_level(GPIO_NUM_2, 0); //Put the blue LED off.
-        vTaskDelay(500/portTICK_PERIOD_MS);
-        
+        //Delay to make sure serial does not overflow fast. 
+        vTaskDelay(100/portTICK_PERIOD_MS);
         // Read data from UART.
-        uint8_t data[128];
+        uint8_t *data = (uint8_t *) malloc(128);
+        uint8_t *send_data = (uint8_t *) malloc(2);
         int length = 0;
         ESP_ERROR_CHECK(uart_get_buffered_data_len(uart_num, (size_t*)&length));
         length = uart_read_bytes(uart_num, data, length, 100);
-        if(length>99){
-            gpio_set_level(GPIO_NUM_2, 1); //Put the blue LED on.
+        
+        // if (length>0){
+        //     gpio_set_level(GPIO_NUM_2,1);
+        //     vTaskDelay(1000/portTICK_PERIOD_MS);
+        //     gpio_set_level(GPIO_NUM_2,0);
+        
+        if(*data == 0x41){
+            gpio_set_level(GPIO_NUM_2, 1); //Put the blue LED(pin2) on
+            *send_data = 0x42;              //Send back confirmation for the start message. 
+            uart_write_bytes(uart_num,send_data,2);
+            break;
         }
-        //Write back data to UART.
-        uart_write_bytes(uart_num, (const char*)data, length);
-        vTaskDelay(500/portTICK_PERIOD_MS);
     }
-   
-    //init_uart();
-    //Loop:
-    // while(1)
-    // {
-    //     gpio_set_level(GPIO_NUM_2, 0); //Put the blue LED off.
-    //     // break;
-    //     vTaskDelay(1000/portTICK_PERIOD_MS);
-    //     gpio_set_level(GPIO_NUM_2, 1); //Put the blue LED on.
-    //     vTaskDelay(1000/portTICK_PERIOD_MS);
-    //     // Write data to UART.
-    //     // char* test_str = "H\n";
-    //     // uart_write_bytes(UART_NUM_0, (const char*)test_str, strlen(test_str));
-    //     // vTaskDelay(1000/portTICK_PERIOD_MS);
-    //     // gpio_set_level(GPIO_NUM_2, 0);
-    //     // vTaskDelay(1000/portTICK_PERIOD_MS);
-    // }
     return 0;
+    while(1){
+        vTaskDelay(10000/portTICK_PERIOD_MS);
+    }
 }

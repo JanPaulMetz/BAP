@@ -13,13 +13,14 @@ def serial_init(comp):
 
 def serial_write(port,message):
     """write on serial port"""
-    port.write((message + '\n').encode())
+    port.write(message)
 
 def serial_read(port):
     """Read on the serial port"""
-    read_line = port.readline()
-    serial_message = read_line.decode().replace('\n','')
-    return serial_message
+    serial_message = port.read()
+    #read_line = port.readline()
+    #serial_message = read_line.decode().replace('\n','')
+    return serial_message.hex()
 
 def check_buffer_content(port):
     """Check if the buffer is empty
