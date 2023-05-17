@@ -15,44 +15,41 @@
 #include "driver/gpio.h"
 #include "wavelength_control.h"
 #include "sdkconfig.h"
+#include "led_module.h"
+#include "uart_module.h"
+// #include "serial_module.h"
+#include "wavelength_control.h"
+
+// static void init_uart(void)
+// {
+//     //Define Uart port
+//     const uart_port_t uart_num = UART_NUM_0;
+//     // Setup UART buffered IO with event queue
+//     const int uart_buffer_size = (1024*2);
+//     QueueHandle_t uart_queue;
+//     // Install UART driver using an event queue here
+//     ESP_ERROR_CHECK(uart_driver_install(uart_num, uart_buffer_size, 
+//                                         uart_buffer_size, 10, &uart_queue, 0));
+    
+//     // Configure UART parameters
+//     ESP_ERROR_CHECK(uart_set_baudrate(uart_num, 115200));
+//     ESP_ERROR_CHECK(uart_set_word_length(uart_num, UART_DATA_8_BITS));
+//     ESP_ERROR_CHECK(uart_set_parity(uart_num,UART_PARITY_DISABLE));
+//     ESP_ERROR_CHECK(uart_set_stop_bits(uart_num, UART_STOP_BITS_1));
+//     ESP_ERROR_CHECK(uart_set_hw_flow_ctrl(uart_num, UART_HW_FLOWCTRL_DISABLE,122));
+//     ESP_ERROR_CHECK(uart_set_mode(uart_num, UART_MODE_UART));
+
+//     ESP_ERROR_CHECK(uart_set_pin(UART_NUM_0, 1, 3, 18, 19));
+
+// }
 
 const uart_port_t uart_num = UART_NUM_0;
-
-static void init_led(void)
-{
-    gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT); //Set the pin direction of the led(pin2) to out. 
-    gpio_set_level(GPIO_NUM_2, 0); //Put the blue LED(pin2) on. 
-}
-
-static void init_uart(void)
-{
-    
-   
-   // Setup UART buffered IO with event queue
-    const int uart_buffer_size = (1024*2);
-    QueueHandle_t uart_queue;
-    // Install UART driver using an event queue here
-    ESP_ERROR_CHECK(uart_driver_install(uart_num, uart_buffer_size, \
-                                        uart_buffer_size, 10, &uart_queue, 0));
-    
-    // Configure UART parameters
-    ESP_ERROR_CHECK(uart_set_baudrate(uart_num, 115200));
-    ESP_ERROR_CHECK(uart_set_word_length(uart_num, UART_DATA_8_BITS));
-    ESP_ERROR_CHECK(uart_set_parity(uart_num,UART_PARITY_DISABLE));
-    ESP_ERROR_CHECK(uart_set_stop_bits(uart_num, UART_STOP_BITS_1));
-    ESP_ERROR_CHECK(uart_set_hw_flow_ctrl(uart_num, UART_HW_FLOWCTRL_DISABLE,122));
-    ESP_ERROR_CHECK(uart_set_mode(uart_num, UART_MODE_UART));
-
-    ESP_ERROR_CHECK(uart_set_pin(UART_NUM_0, 1, 3, 18, 19));
-
-}
-
 
 int app_main(void)
 {
     //Initialize:
     init_led();
-    init_uart();
+    init_uart(UART_NUM_0);
     //char* message = "Nog geen echo";
     
     // uint8_t start_message = (uint8_t)11111111;
@@ -82,7 +79,6 @@ int app_main(void)
             break;
         }
     }
-    return 0;
     while(1){
         vTaskDelay(10000/portTICK_PERIOD_MS);
     }

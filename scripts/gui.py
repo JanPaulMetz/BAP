@@ -3,7 +3,7 @@ Python GUI.
 """
 import sys
 from time import sleep
-from startup_procedure_pc import get_mcu_confirmation, send_mcu_start_message
+from startup_pc_mcu import start_pc_mcu
 
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton
 from PyQt5.QtWebEngineWidgets import QWebEngineView
@@ -91,6 +91,7 @@ class MapWindow(QMainWindow):
 
     def button3_clicked(self):
         print("Button 3 clicked")
+        
 
     def button4_clicked(self):
         print("Button 4 clicked")
@@ -100,6 +101,7 @@ class MapWindow(QMainWindow):
 
 if __name__ == "__main__":
     # Create a QApplication instance
+    start_pc_mcu(COMPORT)
     app = QApplication(sys.argv)
 
     # Create an instance of the MapWindow class
