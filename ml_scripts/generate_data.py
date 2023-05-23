@@ -5,7 +5,7 @@ from scipy import signal
 def generate_discrete_sine(freq, sample_rate, duration):
     """Generate a discrete sine wave."""
     # x_sine = np.linspace(0, duration, sample_rate * duration, endpoint=False)
-    n_samples = duration*sample_rate
+    n_samples = int(duration*sample_rate)
     x_sine = np.arange(duration, step=duration/n_samples)
     frequencies = x_sine * freq
     # 2pi because np.sin takes radians

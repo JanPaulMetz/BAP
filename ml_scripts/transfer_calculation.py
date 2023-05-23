@@ -13,13 +13,24 @@ def get_bin_size(frequency, periods_per_bin, sample_rate):
 
 #TODO: Improve run time 
 def scale_axis(axis, new_bin_size):
-    """Scale omega axis to desired bin size"""
+    """Scale omega axis to desired bin size, only keep first index everytime"""
     original_size = axis.size
     bin_ratio = new_bin_size / original_size
 
     axis_scaled = np.zeros(new_bin_size)
     for i in range(original_size):
         axis_scaled[int(i*bin_ratio)] = axis[i]
+    return axis_scaled
+
+def scale_axis_phase(axis, new_bin_size):
+    """Scale axis without throwing away intermediate values"""
+    original_size = axis.size
+    bin_ratio = new_bin_size / original_size
+
+    axis_scaled = np.zeros(new_bin_size)
+    for i in range(new_bin_size):
+        # print(axis[int(i/bin_ratio)])
+        axis_scaled[i] = axis[int(i/bin_ratio)]
     return axis_scaled
 
 def get_log_space(start, stop, n_sweeps):
@@ -44,16 +55,17 @@ def frequency_sweep(start, stop, sample_rate, duration, n_sweeps):
     step_size = int((stop-start)/n_sweeps)
     # duration = n_samples/sample_rate
     n_samples = int(duration*sample_rate)
-    # print("n_samples:", n_samples)
     sweeped_data_out = np.empty((n_sweeps,n_samples))
     sweeped_data_in = np.empty((n_sweeps,n_samples))
     i = 0
     # print("Range : ", range(start,stop,step_size))
     # TODO: sweep log instead of linear
-    start_log = np.log10(1)
+    if start == 0:
+        start_log = np.log(1)
+    else:
+        start_log = np.log10(start)
     stop_log = np.log10(stop)
     log = np.logspace(start_log,stop_log,n_sweeps)
-    
     # print("log_space", log)
 
     for index, frequency in enumerate(log):
@@ -83,8 +95,8 @@ def get_transfer_power():
     start = 20e3
     stop = 1.3e6
     sample_rate = 65e6
-    periods_per_bin = 2
-    n_sweeps = 50
+    periods_per_bin = 10
+    n_sweeps = 100
 
     # maximum bin size
     # max_bin_size = get_bin_size(start, periods_per_bin, sample_rate)
@@ -108,6 +120,8 @@ def get_transfer_power():
     magnitude_response = np.zeros((n_sweeps, int(max_bin_size)))
     phase_response = np.zeros((n_sweeps, int(max_bin_size)))
     index_max = np.zeros(n_sweeps, dtype=int)
+
+    
     # Loop for each bin size (or frequency)
     for i, frequency in enumerate(bin_logspace):
         # Get bin size and duration
@@ -119,25 +133,12 @@ def get_transfer_power():
 
         # get fft
         omega_in, fft_in = calculate_signal_fft(time_axis, data_in, sample_rate)
-        omega_out, fft_out = calculate_signal_fft(time_axis, data_out, sample_rate)
-        
-        # Get phase response phase(H) = arctan(Im(H)/Re(H))
-        # nonzero = np.where(np.abs(fft_in)>0)
-        fft_in_ph = scale_axis(fft_in, max_bin_size)
-        fft_out_ph = scale_axis(fft_out, max_bin_size)
-        nonzero_in = np.where(fft_in_ph!=0)
-        transfer = np.zeros(max_bin_size)
-        transfer[nonzero_in] = fft_out_ph[nonzero_in]/fft_in_ph[nonzero_in]
-        print(transfer)
-        # transfer = scale_axis(transfer, max_bin_size)
-      
-        #scale
+        omega_out, fft_out = calculate_signal_fft(time_axis, data_out, sample_rate)   
 
-        phase_response[i,:] = np.arctan2(np.imag(transfer),np.real(transfer))
         # scale fft to max bin size
         data_in_fft[i,:] = scale_axis(np.abs(fft_in), max_bin_size)
         data_out_fft[i,:] = scale_axis(np.abs(fft_out), max_bin_size)
-        
+ 
         # Store max index of input fft
         print("DEBUG", np.where(data_in_fft[i,:] == np.max(data_in_fft[i,:]))[0] )
         index_max[i] = int(np.where(data_in_fft[i,:] == np.max(data_in_fft[i,:]))[0])
@@ -146,22 +147,40 @@ def get_transfer_power():
         input_power = data_in_fft[i,index_max[i]]
         output_power = data_out_fft[i,index_max[i]]
         
+        # Get phase
+        print(fft_in.shape)
+        index_max_phase = int(np.where(np.abs(fft_in) == np.max(np.abs(fft_in)))[0])
+        phase_axis = np.zeros(fft_in.size)
+        original_size = fft_in.size
+        bin_ratio = max_bin_size / original_size
+        scaled_index = int((index_max_phase)*bin_ratio)
+        
+        # axis_scaled[int(i*bin_ratio)] = axis[i]
+
+        input_phasor = fft_in[index_max_phase]
+        output_phasor = fft_out[index_max_phase]
+        tf = output_phasor/input_phasor
+        phase = np.arctan(np.imag(tf)/np.real(tf))
+        print("PHASE", phase, scaled_index)
+        phase_axis[index_max_phase] = phase
+        phase_response[i,:] = scale_axis(phase_axis, max_bin_size)
+        
         print("POWER", input_power, output_power)
         power_mag_response = output_power/input_power
 
         # Store it at index max power input
         print(index_max[i])
         magnitude_response[i,int(index_max[i])] = power_mag_response
-        # magnitude_response[i,:] = calculate_transfer_magnitude(data_in_fft[i,:], data_out_fft[i,:])
-        # print(1)
-        # plt.figure()
-        # plt.stem(omega_init, data_in_fft[i,:])
-        # plt.scatter(omega_init, data_out_fft[i,:], color='r')
-        # plt.show()
+ 
+    print(phase_response)
+    # plt.figure()
+    # plt.scatter(omega_init, phase_response)
+    # plt.show()
     print("Pgase size", magnitude_response.shape)
     magnitude_tf_mean, magnitude_tf_indices = mean_transfer(magnitude_response)
     print("Pgase size", phase_response.shape)
-    phase_tf_mean, phase_tf_indices = mean_transfer(phase_response)
+    # phase_tf_mean, phase_tf_indices = mean_transfer(phase_response)
+    phase_tf_mean, phase_tf_indeces = mean_transfer(phase_response)
     print("Pgase size", phase_response.shape)
     # Validation
     print(magnitude_response.shape)
@@ -173,8 +192,8 @@ def get_transfer_power():
     print("Outliers: ",np.where((np.rad2deg(phase_tf_mean)>-15) & (omega_init > 6e5) & (np.abs(phase_tf_mean)>0) ))
     outliers = np.where((np.rad2deg(phase_tf_mean)>-15) & (omega_init > 6e5) & (np.abs(phase_tf_mean)>0) )
     plt.figure()
-    plt.scatter(omega_init[outliers],  np.rad2deg(phase_tf_mean[outliers]), color='red')
-    plt.scatter(omega_init[phase_tf_indices], phase_tf_mean[phase_tf_indices], marker='.', color='green', label="Measured Response")
+    # plt.scatter(omega_init[outliers],  np.rad2deg(phase_tf_mean[outliers]), color='red')
+    plt.scatter(omega_init[phase_tf_indeces], np.rad2deg(phase_tf_mean[phase_tf_indeces]), marker='.', color='green', label="Measured Response")
     plt.semilogx(w_lin,  np.rad2deg(np.unwrap(np.angle(h))), ls='dashed', label='Simulated Response')
     plt.grid(which='both', axis='both')
     plt.vlines(500_000,ymin=0, ymax=-8, ls='dashed', color='green',label="-3dB frequency")
@@ -411,6 +430,8 @@ def calculate_transfer_phase(input_fft, output_fft):
 # TODO: CHECK FOR OUTLIERS
 
 def mean_transfer_dev(transfer_matrix):
+    # for i in range(transfer_matrix.shape[1]): # for al rows
+
     mean_transfer = np.mean(transfer_matrix, axis=0)
     return mean_transfer
 

@@ -16,6 +16,7 @@ N_SAMPLES = int(DURATION*SAMPLE_RATE)
 data_in, data_out, time_axis = frequency_sweep(START,STOP,SAMPLE_RATE,DURATION, N_SWEEPS)
 """
 
+# get_transfer_power()
 get_transfer_power()
 sys.exit()
 def get_bin_size(frequency, periods_per_bin, sample_rate):
