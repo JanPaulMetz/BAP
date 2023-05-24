@@ -15,7 +15,7 @@ def generate_discrete_sine(freq, sample_rate, duration):
 # TODO: randomize this transferfunction generation
 def generate_discrete_tf(sample_rate):
     """Generate a discrete transferfunction."""
-    f_cutoff = 1.62e6
+    f_cutoff = 1.67e6
     #w = f_cutoff / (sample_rate / 2)
     num, den = signal.butter(1, [f_cutoff], btype='lowpass', analog=False, fs=sample_rate)
     return num, den
