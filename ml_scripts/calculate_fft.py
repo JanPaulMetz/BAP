@@ -11,8 +11,7 @@ def calculate_signal_fft(x_signal, y_discrete, sample_rate):
     # ax[0].stem(omega,np.abs(u_fft/x_signal.size)) #x_signal.size
     # ax[1].plot(x_signal, y_discrete)
     # plt.show()
-    # print("size", omega.size)
-    return omega, u_fft/(x_signal.size//2)
+    return omega, u_fft/(u_fft.size)#/(x_signal.size//2)
 
 def fft_to_singlesided(omega, fft_in, sample_rate, duration):
     """Convert double sided fft to signlesided"""
