@@ -8,7 +8,8 @@ def serial_init(comp):
             baudrate=115200,
             bytesize=serial.EIGHTBITS,
             parity=serial.PARITY_NONE,
-            stopbits=serial.STOPBITS_ONE)
+            stopbits=serial.STOPBITS_ONE,
+            timeout = 1)
     return ser
 
 def serial_write(port,message):

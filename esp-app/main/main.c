@@ -6,6 +6,12 @@
    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
    CONDITIONS OF ANY KIND, either express or implied.
 */
+
+/*
+GPIO PINOUT:
+GPIO 1: UART 0 TX
+GPIO 3: UART 0 RX
+*/
 #include <stdio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -17,45 +23,18 @@
 #include "sdkconfig.h"
 #include "led_module.h"
 #include "uart_module.h"
-// #include "serial_module.h"
 #include "wavelength_control.h"
 
-// static void init_uart(void)
-// {
-//     //Define Uart port
-//     const uart_port_t uart_num = UART_NUM_0;
-//     // Setup UART buffered IO with event queue
-//     const int uart_buffer_size = (1024*2);
-//     QueueHandle_t uart_queue;
-//     // Install UART driver using an event queue here
-//     ESP_ERROR_CHECK(uart_driver_install(uart_num, uart_buffer_size, 
-//                                         uart_buffer_size, 10, &uart_queue, 0));
-    
-//     // Configure UART parameters
-//     ESP_ERROR_CHECK(uart_set_baudrate(uart_num, 115200));
-//     ESP_ERROR_CHECK(uart_set_word_length(uart_num, UART_DATA_8_BITS));
-//     ESP_ERROR_CHECK(uart_set_parity(uart_num,UART_PARITY_DISABLE));
-//     ESP_ERROR_CHECK(uart_set_stop_bits(uart_num, UART_STOP_BITS_1));
-//     ESP_ERROR_CHECK(uart_set_hw_flow_ctrl(uart_num, UART_HW_FLOWCTRL_DISABLE,122));
-//     ESP_ERROR_CHECK(uart_set_mode(uart_num, UART_MODE_UART));
-
-//     ESP_ERROR_CHECK(uart_set_pin(UART_NUM_0, 1, 3, 18, 19));
-
-// }
 
 const uart_port_t uart_num = UART_NUM_0;
 
-int app_main(void)
-{
-    //Initialize:
-    init_led();
-    init_uart(UART_NUM_0);
-    //char* message = "Nog geen echo";
-    
-    // uint8_t start_message = (uint8_t)11111111;
+adc_oneshot_unit_handle_t adc_handle;
+adc_cali_handle_t adc_calibration_handle;
+bool do_calibration = NULL;
 
-    
 
+
+void startup_check(){
     while (1)
     {
         //Delay to make sure serial does not overflow fast. 
@@ -67,11 +46,6 @@ int app_main(void)
         ESP_ERROR_CHECK(uart_get_buffered_data_len(uart_num, (size_t*)&length));
         length = uart_read_bytes(uart_num, data, length, 100);
         
-        // if (length>0){
-        //     gpio_set_level(GPIO_NUM_2,1);
-        //     vTaskDelay(1000/portTICK_PERIOD_MS);
-        //     gpio_set_level(GPIO_NUM_2,0);
-        
         if(*data == 0x41){
             gpio_set_level(GPIO_NUM_2, 1); //Put the blue LED(pin2) on
             *send_data = 0x42;              //Send back confirmation for the start message. 
@@ -79,7 +53,39 @@ int app_main(void)
             break;
         }
     }
+}
+
+// void get_frequency(){
+//     bool freq_available;
+//     float frequency;
+
+//     return freq_available, frequency;
+// }
+
+void app_main(void)
+{
+    //Initialize:
+    init_led();
+    adc_init(adc_handle);
     while(1){
-        vTaskDelay(10000/portTICK_PERIOD_MS);
+        adc_single_read_print(adc_handle, adc_calibration_handle, &do_calibration);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
+    // init_uart(UART_NUM_0);
+    //Check if the connection over the serial port is established. 
+    // startup_check();
+    //Check if there is a frequency to work with:
+    // while (x == True){
+    //     x,y = get_frequency()
+    //     )
+    // }
+    //Standard loop:
+    // while (1){
+    //     //Evaluate wavelength control
+    //     //Operating point compensation
+    //     //Instruction of pc?
+    //     //If Yes->Execute instruction
+    // }
+
+    
 }

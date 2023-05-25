@@ -16,26 +16,28 @@ def start_pc_mcu(comp):
     count = 0
     while count<5:
         ser.read_all()
-        sleep(1)
+        sleep(0.1)
         count += 1
-
     #Send start message to MCU.
     send_count = 0
     confirmation = False
     while not confirmation:
         serial_module.serial_write(ser,packet)
+        print("start packet send")
         check_confirmation_count = 0
         while not confirmation and check_confirmation_count<5:
-            sleep(0.1)
-            x = serial_module.serial_read(ser)
-            if x == "42":
+            #sleep(0.1)
+            message = serial_module.serial_read(ser)
+            print(message)
+            if message == "42":
                 confirmation = True
                 break
             check_confirmation_count += 1
         send_count += 1
-        if send_count==5:
+        if send_count==3:
             raise TimeoutError('Received no confirmation of the MCU')
-
+    sleep(0.5)
     print("startup completed")
     return confirmation
-        
+
+start_pc_mcu("COM5")
