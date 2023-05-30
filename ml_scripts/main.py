@@ -1,9 +1,11 @@
 """ Toplevel script containing threads"""
 from time import sleep
+import time
 import random
 import threading
 import queue
 import serial
+import textwrap
 
 from scipy.fft import fft, fftfreq
 from scipy import signal
@@ -12,16 +14,17 @@ import pandas as pd
 
 import sys
 from bitstring import BitArray
+from collections import deque
 
-from data_processing import message_to_float, calculate_magnitude_response,get_fft_index
-
+from data_processing import *
+from generate_data import generate_discrete_sine
 # Data stream serial
 stream_baud_rate= 115200
 stream_port = 'COM11'
 
 # Data stream
-n_messages = int(80)
-n_bytes = int(2*n_messages) # 2 bytes per message
+n_packages = int(80)
+n_bytes = int(2*n_packages) # 2 bytes per message
 n_bits = int(8*n_bytes)     # 8 bits per byte
 
 # Data Processing
@@ -30,8 +33,11 @@ current_ID = 0
 current_temperature = 0
 
 # System constants
-sample_rate = 65e6
-bin_size = int(n_messages - 2) # binsize of time data
+sample_rate = 65e6 # samples/sec
+bin_size = int(n_packages - 2) # binsize of time data (in samples)
+duration = bin_size/sample_rate
+min_frequency = 1.58e6
+max_frequency = 1.68e6
 
 # Window
 hann_window = np.copy(signal.windows.hann(int(bin_size), False))
@@ -39,11 +45,20 @@ hann_window = np.copy(signal.windows.hann(int(bin_size), False))
 # Contains data from stream input
 data_bin = bytearray()
 data_lock = threading.Lock()
+master_bin_lock = threading.Lock()
 
 # DataFrame containing ID's and frequency components with amplitude that are used for input
 n_frequencies = 3
-input_df = pd.DataFrame({'ID': [1.11328125], 'Frequency1':[1.6e6], 'Amplitude1':[1],'Frequency2':[1.601e6],
-                          'Amplitude2':[0.3],'Frequency3':[1.61e6], 'Amplitude3':[0.57]})
+input_df = pd.DataFrame({'ID': [0.4722900390625], 'Frequency1':[1.589e6], 'Amplitude1':[1],'Frequency2':[1.621e6],
+                          'Amplitude2':[0.3],'Frequency3':[1.66e6], 'Amplitude3':[0.57]})
+
+# Data bins containing magnitude and phase response
+total_bandwith = 100e3 # Hz
+n_freq_bins = 100
+max_freq_bins_length = 10
+storage_bw = total_bandwith/max_freq_bins_length
+magnitude_master_bin = [deque(maxlen=max_freq_bins_length) for _ in range(n_freq_bins)]
+phase_master_bin = [deque(maxlen=max_freq_bins_length) for _ in range(n_freq_bins)]
 
 # Keyboard Interrupt signal
 stop_threads = threading.Event()
@@ -78,150 +93,140 @@ def read_datastream():
             data_bin.extend(data_to_store)
 
 # Data processing thread
-def data_processing(start):
+def data_processing():
     """ The intention is to use this function as a threaded function
         It calculates the magnitude and phase response of the current
         time data (for a max of 4 frequency components at a time)
         the start_processing condition is used as trigger for starting
         the processing of the time-domain data
     """
-
+    count = 0
     while not stop_threads.is_set():
-        
+        count += 1
+        start_time = time.time()
         with data_lock:
             # Get data from data_bin (twice the size for locking on the ID byte)
-            data_to_process = data_bin[0:2*n_bytes]
-            
-            # Clear data_bin, so that it does not overflow
-            data_bin.clear()
+            data_to_process = data_bin[0:2*n_bytes].copy()
+            # print("databin", data_bin)
 
         data_to_process_string = data_to_process.hex()
-
+        
         # Only process non empty bins
         if data_to_process_string:
-            # Get opcode from first byte 00 = time data, 10 = ID, 01 = second feature
-            print("data", len(data_to_process))
+            with data_lock:
+                # Clear data_bin, so that it does not overflow
+                data_bin.clear()
+            print("Tries to read",count)
+            
             # Convert bytearray to bitarray
             data_to_process_bits = BitArray(data_to_process)
-            print(data_to_process_bits)
-            message_length = 2*8 # 2 bytes in bits
-            # print('length', len(data_to_process_bits))
+    
+            package_length = 2*8 # 2 bytes in bits
 
-            # Message types:
+            # Package types:
             type_time_data = BitArray('0b00')
             type_second_feature = BitArray('0b10')
             type_ID = BitArray('0b01')
             type_error = BitArray('0b11')
 
             # Extract databin of length n_messages (1 message is 2 bytes) starting with ID byte
-            # print("n_bits",n_bits)
-            for i in range(2*n_messages):
+            data_bits = data_to_process_bits.copy()
 
-                # Check for every 2 bytes the message type
-                message_type = data_to_process_bits[message_length*i: message_length*i + 2]
-                
-                # if message is of type ID, get 1 binlength from total data, starting with ID byte
-                if message_type == type_ID:
-                    data_to_process_bits = data_to_process_bits[message_length*i: message_length*i + n_bits]
-                    break
-            
-            # print('length', len(data_to_process_bits))
-            # print("message",data_to_process_bits)
-            
+            # Sync on ID, extract package with length n_bits
+            data_to_process_bits = sync_on_ID(data_bits, n_bytes, n_bits)
+            # print("ID",data_to_process_bits)
+          
+            # type_mes = data_to_process_bits[m/essage_length*i+2: message_length*i + 16]
             time_domain_samples_out = []
+            current_ID = 0
             # For each 2 bytes (message) extract the data and convert to float
-            for i in range(n_messages):
+            for i in range(n_packages):
 
                 # Two MSB's --> message type
-                message_type = data_to_process_bits[message_length*i: message_length*i + 2]
+                package_type = data_to_process_bits[package_length*i: package_length*i + 2]
                 # print("Message type", message_type)
 
                 # 14 LSB's --> message content
-                message_content = data_to_process_bits[message_length*i+2: message_length*i + 16]
+                package_content = data_to_process_bits[package_length*i+2: package_length*i + 16]
             
                 # Time message
-                if message_type == type_time_data:
-                    message_float = message_to_float(message_content)
-                    print(message_content)
-                    print(message_float)
+                if package_type == type_time_data:
+                    package_float = single_point_to_decimal(package_content)
+
                     # Append all time domain samples to this list
-                    time_domain_samples_out.append(message_float)
+                    time_domain_samples_out.append(package_float)
 
                 # ID
-                elif message_type == type_ID:
-                    message_float = message_to_float(message_content)
-                    current_ID = message_float
-                    print("ID", message_float)
+                elif package_type == type_ID:
+                    package_float = single_point_to_decimal(package_content)
+                    current_ID = package_float
+                    # print("ID", message_float)
                     
                 # Temperature
-                elif message_type == type_second_feature:
-                    message_float = message_to_float(BitArray('0b01101010101010'))
-                    current_temperature = message_float
+                elif package_type == type_second_feature:
+                    package_float = single_point_to_decimal(BitArray('0b01101010101010'))
+                    current_temperature = package_float
                     # print("Temperature")
                 # Error in message
-                elif message_type == type_error:
+                elif package_type == type_error:
                     print("Error in message")
             
-            # Data is extracted, start getting frequency response of this data bin
-
-            # Window time signal
-            windowed_output = hann_window*time_domain_samples_out
-
-            # Get normalized singlesided output fft
-            output_fft = fft(windowed_output)
-            output_fft_normalized = output_fft/len(output_fft)
-            output_fft_normalized_r = output_fft_normalized[0:len(output_fft_normalized)//2]
+            # Data is extracted, start getting frequency response of this data bin:
 
             # Extract data from input_df
+            print("cuurent id", current_ID)
             current_index = input_df.loc[input_df['ID']==current_ID].index[0]
             current_input = input_df.loc[current_index]
             frequencies = current_input[["Frequency1","Frequency2","Frequency3"]]
             amplitudes = current_input[["Amplitude1","Amplitude2","Amplitude3"]]
-            for i in range(n_frequencies):
-                frequency = frequencies[i]
-                amplitude = amplitudes[i]
 
-                # skip if frequency has amplitude 0
-                if amplitude > 0:
-                    fft_index = get_fft_index(frequency, sample_rate, bin_size)
-                    magnitude_response = calculate_magnitude_response(output_fft_normalized_r, amplitude, fft_index)
-                    print("magnitude respo",magnitude_response)
+            # Generate time domain input signal
+            time_axis, time_domain_samples_in = generate_input_time_signal(frequencies, amplitudes,sample_rate, duration)
 
-                print("index", amplitude)
-                print("content", frequency)
-                # if n_frequencies > 0:
+            # Window time signal
+            print("in",len(time_domain_samples_in))
+            print("out",len(time_domain_samples_out))
+            print("hann",len(hann_window))
 
+            windowed_input = hann_window*time_domain_samples_in
+            windowed_output = hann_window*time_domain_samples_out
 
-            print(time_domain_samples_out)
+            # Get normalized singlesided output fft
+            input_fft = get_normalized_singlesided_fft(windowed_input)
+            output_fft = get_normalized_singlesided_fft(windowed_output)
+
+            # Get indices where frequency component is present
+            fft_indices = get_fft_index(frequencies, sample_rate, bin_size)
+
+            # Remove indices for which amplitude (power) = 0
+            indices_to_keep = np.where(np.abs(amplitudes)>0)[0]
+            print(indices_to_keep)
+            fft_indices = fft_indices[indices_to_keep]
+
+            # Get magnitude response for each frequency component
+            magnitude_response = calculate_magnitude_response_b(input_fft, output_fft, fft_indices)
+            
+            # Get phase response for each frequency component
+            phase_response = calculate_frequency_response(input_fft, output_fft, fft_indices)
+
+            # Get frequency bin number
+            freq_bin_nums = get_freq_bin_number(frequencies,min_frequency, max_frequency, n_freq_bins)
+
+            # lock mster bins, those are used by other threads!
+            with master_bin_lock:
+                for i, bin_num in enumerate(freq_bin_nums):
+                    # Append results to the master bins:
+                    print(bin_num)
+                    print(magnitude_response[i])
+                    magnitude_master_bin[bin_num].append((frequencies[i],magnitude_response[i]))
+                    phase_master_bin[bin_num].append((frequencies[i],phase_response[i]))
+
             print(len(time_domain_samples_out))
-            # calculate_frequency_response(current_ID, current_temperature,time_domain_samples_out ,time_domain_samples_out, sample_rate, bin_size)
-                
-# Process time-domain data
-def process_time_data():
-    """ Thread that is processing the time-domain data.
-        Starts processing if start_processing is set
-        Immediatly after this is started, it wil reset ready_to_process.
-        After it is finished, it will set ready_to_process.
-    """
-    while not stop_threads.is_set():
-        # Wait on trigger to start
-        start_processing.wait()
-        # Reset ready_to_process
-        ready_to_process = False
-
-        # Set ready_to_process
-        ready_to_process = True
-
-        # Trigger start_processing
-        start_processing.set()
-
-# Update input DataFrame
-def updata_input_data_frame():
-    """ When data corresponding to an ID is requested
-        pop de 
-    
-    """
-
+            # data_to_process.clear()
+            print("time",time.time()- start_time)
+            print("MASTER", magnitude_master_bin)
+            count = 0
+            
 
 # Model estimation thread
 def model_estimation():
@@ -249,7 +254,7 @@ if __name__ == "__main__":
     data = queue.Queue()
     # Initialize threads
     read_datastream = threading.Thread(target=read_datastream, args=())
-    data_processing = threading.Thread(target=data_processing, args=(start_processing, ))
+    data_processing = threading.Thread(target=data_processing, args=())
     model_estimation = threading.Thread(target=model_estimation, args=())
     serial_com = threading.Thread(target=serial_com, args=())
 
