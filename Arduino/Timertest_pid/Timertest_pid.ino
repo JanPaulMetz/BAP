@@ -15,6 +15,8 @@ float minError = 256;
 PID myPID(&Input, &Output, &Setpoint,2,5,1, DIRECT);
  
 hw_timer_t *Timer0_Cfg = NULL;
+
+//int count = 0;
  
 void IRAM_ATTR Timer0_ISR() //Interrupt function when timer is at 1ms. 
 {
@@ -25,6 +27,7 @@ void IRAM_ATTR Timer0_ISR() //Interrupt function when timer is at 1ms.
     //Write the output of the PID controller as a pwm voltage. 
     analogWrite(pwmPin, Output);
     //ledcWrite(pwmChannel, 127);
+    //count += 1;
     
 }
 
@@ -34,17 +37,19 @@ void setup()
     pinMode(LED, OUTPUT);
 
     //initialize the variables we're linked to
-    analogWriteResolution(12);
+    analogWriteResolution(9);
+    analogReadResolution(9);
     Input = analogRead(ADC); 
-    Setpoint = 2048;
+    Setpoint = 384;
 
     //turn the PID on
     myPID.SetSampleTime(1);
+    myPID.SetOutputLimits(0,511);
     myPID.SetMode(AUTOMATIC);
     //Interrupt timer for every 1ms. 
-    Timer0_Cfg = timerBegin(0, 8000, true);
+    Timer0_Cfg = timerBegin(0, 80, true); //1 MHZ
     timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
-    timerAlarmWrite(Timer0_Cfg, 10000, true);
+    timerAlarmWrite(Timer0_Cfg, 1000, true); //Set alarm at 1000 counts. 
     timerAlarmEnable(Timer0_Cfg);
     //Start serial communication on:
     Serial.begin(baudrate); //USB port 

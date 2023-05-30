@@ -38,10 +38,10 @@ void setup()
     pinMode(potPin,INPUT_PULLUP);
     pinMode(LED, OUTPUT);
     //Interrupt timer for every 1ms. 
-//    Timer0_Cfg = timerBegin(0, 8000, true);
-//    timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
-//    timerAlarmWrite(Timer0_Cfg, 10000, true);
-//    timerAlarmEnable(Timer0_Cfg);
+    Timer0_Cfg = timerBegin(0, 8000, true);
+    timerAttachInterrupt(Timer0_Cfg, &Timer0_ISR, true);
+    timerAlarmWrite(Timer0_Cfg, 10000, true);
+    timerAlarmEnable(Timer0_Cfg);
     //Start serial communication on:
     Serial.begin(115200); //USB port 
     Serial2.begin(115200); //Uart Pins Uart2_tx & Uart2_rx.

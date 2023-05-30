@@ -16,19 +16,39 @@ int pwmChannel = 0;
 int frequence = 100000;
 int resolution = 12;
 
+float Kp = 2;//-0.0127;
+float Ki = 5;//-0.00965;
+float Kd = 1;//-0.0000487;
+int PIDSetPoint = 1024;
+
+
 //Specify the links and initial tuning parameters
-PID myPID(&Input, &Output, &Setpoint,2,5,1, DIRECT);
+PID myPID(&Input, &Output, &Setpoint,0,0,0, DIRECT);//Tunings first set to some random variables, will later be changed due to direction.
 
 void setup()
 {  
   //initialize the variables we're linked to
   analogWriteResolution(12);
   Input = analogRead(ADC); 
-  Setpoint = 127;
+  Setpoint = PIDSetPoint;
 
   //turn the PID on
-  //myPID.SetSampleTime(1000);
+  myPID.SetSampleTime(1);
+  myPID.SetOutputLimits(0,4095);
   myPID.SetMode(AUTOMATIC);
+  //Retune PID:
+  if((Kp < 0)&&((Ki < 0)&&(Kd < 0))){
+    Kp = -Kp;
+    Ki = -Ki;
+    Kd = -Kd;
+    myPID.SetTunings(Kp,Ki,Kd);
+    myPID.SetControllerDirection(REVERSE);
+  }
+  else if((Kp > 0)&&((Ki > 0)&&(Kd > 0))){
+    myPID.SetTunings(Kp,Ki,Kd);
+    myPID.SetControllerDirection(DIRECT);
+  }
+  
   
   Serial.begin(115200);
   pinMode(LED, OUTPUT);
@@ -42,7 +62,7 @@ void loop()
     //Compute the PID
     myPID.Compute();
     //Write the output of the PID controller as a pwm voltage. 
-    analogWrite(pwmPin, 512);
+    analogWrite(pwmPin, Output);
     //ledcWrite(pwmChannel, 127);
     
 
