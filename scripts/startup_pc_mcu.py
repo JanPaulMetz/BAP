@@ -38,6 +38,4 @@ def start_pc_mcu(comp):
             raise TimeoutError('Received no confirmation of the MCU')
     sleep(0.5)
     print("startup completed")
-    return confirmation
-
-start_pc_mcu("COM5")
+    return confirmation, ser

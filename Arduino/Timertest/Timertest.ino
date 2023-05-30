@@ -6,6 +6,8 @@ int potValue = 0;
 int message;
  
 hw_timer_t *Timer0_Cfg = NULL;
+
+int timerCore;
  
 void IRAM_ATTR Timer0_ISR() //Interrupt function when timer is at 1ms. 
 {

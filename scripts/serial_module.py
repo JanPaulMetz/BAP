@@ -9,7 +9,7 @@ def serial_init(comp):
             bytesize=serial.EIGHTBITS,
             parity=serial.PARITY_NONE,
             stopbits=serial.STOPBITS_ONE,
-            timeout = 1)
+            )#timeout = 1)
     return ser
 
 def serial_write(port,message):
