@@ -179,5 +179,8 @@ def get_freq_bin_number(frequencies_list, start_freq, stop_freq, n_bins):
     bin_numbers = np.divide(product,freq_range)
     return list(map(int, bin_numbers))
 
+def fit_model(unpacked_coordinates):
+    """ Fit model by performing polyfit on frequency data"""
+    print("Fit model")
 # print(get_freq_bin_number([1.61e6], 1.58e6, 1.68e6, 100))
 # print(message_to_float(BitArray('0b11010100110000')))

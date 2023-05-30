@@ -1,23 +1,25 @@
 """ Toplevel script containing threads"""
 from time import sleep
 import time
-import random
+import itertools
 import threading
 import queue
 import serial
-import textwrap
 
 from scipy.fft import fft, fftfreq
 from scipy import signal
 import numpy as np
 import pandas as pd
 
-import sys
 from bitstring import BitArray
 from collections import deque
 
 from data_processing import *
 from generate_data import generate_discrete_sine
+# ESP32
+esp_baud_rate = 115200
+esp_port = 'COM10'
+
 # Data stream serial
 stream_baud_rate= 115200
 stream_port = 'COM11'
@@ -59,9 +61,19 @@ max_freq_bins_length = 10
 storage_bw = total_bandwith/max_freq_bins_length
 magnitude_master_bin = [deque(maxlen=max_freq_bins_length) for _ in range(n_freq_bins)]
 phase_master_bin = [deque(maxlen=max_freq_bins_length) for _ in range(n_freq_bins)]
-
+# Globals that are accessed by model estimation and phase fit and magnitude fit
+master_magnitude_unpacked = queue.Queue()
+master_phase_unpacked = queue.Queue()
 # Keyboard Interrupt signal
 stop_threads = threading.Event()
+master_ready = threading.Event()
+magnitude_fitted = threading.Event()
+phase_fitted = threading.Event()
+
+# Conditions
+start_training = threading.Condition()
+start_fitting = threading.Condition()
+
 
 # Main thread
 def main_thread():
@@ -212,6 +224,11 @@ def data_processing():
             # Get frequency bin number
             freq_bin_nums = get_freq_bin_number(frequencies,min_frequency, max_frequency, n_freq_bins)
 
+            # Wait untill master bins are ready
+            print("wait on master", master_ready.is_set())
+            master_ready.wait()
+            # Clear, so that other threads do not access the bins
+            master_ready.clear()
             # lock mster bins, those are used by other threads!
             with master_bin_lock:
                 for i, bin_num in enumerate(freq_bin_nums):
@@ -221,27 +238,122 @@ def data_processing():
                     magnitude_master_bin[bin_num].append((frequencies[i],magnitude_response[i]))
                     phase_master_bin[bin_num].append((frequencies[i],phase_response[i]))
 
+            # Set master_ready, so that other threads can access again
+            master_ready.set()
+            # Notify model estimation thread
+            with start_training:
+                start_training.notify()
+
             print(len(time_domain_samples_out))
             # data_to_process.clear()
             print("time",time.time()- start_time)
-            print("MASTER", magnitude_master_bin)
+            # print("MASTER", magnitude_master_bin)
             count = 0
             
-
 # Model estimation thread
 def model_estimation():
     """ Fits a polynomial to the data that is containing the phase and 
         magnitude response.
     """
-    sleep(3)
-    print("mdoel thread")
+    while not stop_threads.is_set():
+
+        # Wait with training till dataprocessing notifies
+        with start_training:
+            print("Waiting to be notified")
+            start_training.wait()
+            print("Start model training")
+
+        # Wait on master to become ready to access
+        master_ready.wait()
+        master_ready.clear()
+        with master_bin_lock:
+            print("Master bins unpacked:")
+            mag_unpacked = [sample for sample in itertools.chain.from_iterable(magnitude_master_bin)]
+            master_magnitude_unpacked.put(mag_unpacked)
+            # master_phase_unpacked = [sample for sample in itertools.chain.from_iterable(phase_master_bin)]
+        # Set master_ready so that dataprocessing can proceed
+        master_ready.set()
+
+        with start_fitting:
+            start_fitting.notify_all()
+        
+        print("STATUS fit",magnitude_fitted.is_set(), phase_fitted.is_set() )
+        # Wait twice, so wait on magnitude and phase fit to be finished
+        magnitude_fitted.wait()
+        phase_fitted.wait()
+        
+        # Both finished so reset flags
+        magnitude_fitted.clear()
+        phase_fitted.clear()
+
+def magnitude_fit():
+    """ Thread that is fitting magnitude data"""
+    while not stop_threads.is_set():
+        # Wait on model estimation to be ready
+        with start_fitting:
+            start_fitting.wait()
+        fit_model(master_magnitude_unpacked)
+        #TODO: Push new model parameters
+
+        # Let model_estimion know that its done
+        magnitude_fitted.set()
+        print("Mag FITTED")
+
+def phase_fit():
+    """ Thread that is fitting phase data"""
+    while not stop_threads.is_set():
+        # Wait on model estimation to be ready
+        with start_fitting:
+            start_fitting.wait()
+        fit_model(master_phase_unpacked)
+        #TODO: Push new model parameters
+
+        # Let model_estimion know that its done
+        phase_fitted.set()
+        print("phase FITTED")
 
 # Serial com thread --> com with esp32
 def serial_com():
     """ Takes the function argument message and transmits it to serial
-    """
-    sleep(5)
-    print("serial thread")
+    """     
+    received_start_byte = False
+    esp_serial = serial.Serial(esp_port, esp_baud_rate)
+
+    esp_serial.close()
+    esp_serial.open()
+    while not stop_threads.is_set():
+        # Skip 
+        if not received_start_byte:
+            # Send start byte
+            n_transmit_attempts = 10
+            n_receive_attempts = 5
+            start_byte = BitArray("0b01010101")
+            
+            for transmit_attempt in range(n_transmit_attempts):
+                # n attempts to transmit
+                esp_serial.write(start_byte)
+                print("start byte attempt", transmit_attempt)
+
+                for receive_attempt in range(n_receive_attempts):
+                    # n attempts to receive
+                    receive_byte = BitArray(esp_serial.read(1))
+                    print("receive attempt", receive_attempt)
+                    sleep(1)
+
+                    # If received break
+                    if receive_byte == BitArray("0b10101010"):
+                        received_start_byte = True
+                        break
+
+                # Break out first loop            
+                if received_start_byte:
+                    print("Received start byte")
+                    break   
+
+            # If not received break out program
+            if not received_start_byte:
+                stop_threads.set() 
+        
 
 
 # Main is only used to start threads
@@ -252,22 +364,39 @@ if __name__ == "__main__":
 
     # Global signals used for controlling threads
     data = queue.Queue()
+    # master bin is ready to access
+    master_ready.set()
+    print("Check master", master_ready.is_set())
     # Initialize threads
     read_datastream = threading.Thread(target=read_datastream, args=())
     data_processing = threading.Thread(target=data_processing, args=())
     model_estimation = threading.Thread(target=model_estimation, args=())
     serial_com = threading.Thread(target=serial_com, args=())
+    magnitude_fit = threading.Thread(target=magnitude_fit, args=())
+    phase_fit = threading.Thread(target=phase_fit, args=())
+
 
     read_datastream.start()
     data_processing.start()
-
+    model_estimation.start()
+    serial_com.start()
+    magnitude_fit.start()
+    phase_fit.start()
 
     # Stop at keyboard interrupt
     try:
         while True:
             sleep(1)
+            if stop_threads.is_set():
+                break
     except KeyboardInterrupt:
         stop_threads.set()
+        with start_training:
+            start_training.notify_all()
         data_processing.join()
         read_datastream.join()
+        model_estimation.join()
+        serial_com.join()
+        magnitude_fit.join()
+        phase_fit.join()
         print("END")
