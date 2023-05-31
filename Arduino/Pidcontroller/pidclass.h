@@ -13,6 +13,7 @@ class PIDController {
     double integral;        // Integral term
     unsigned long prevTime; // Previous time
     double deltaTime;       // Time difference
+    double capSize;         // Integral capsize
 
   public:
     PIDController(double kp, double ki, double kd);

@@ -3,7 +3,7 @@
 #define LED 2
 
 uint16_t voltage[200];
-int size = 200;
+int size = 256;
 
 byte HighByte;
 byte LowByte;
@@ -43,6 +43,15 @@ void setup() {
   Serial.begin(115200);
   startupCheck();
   // put your setup code here, to run once:
+  sendSweep(voltage);
+  delay(10);
+  for(int i = 0; i < size; i++){
+    HighByte = (voltage[i]>>8) & 0xFF;
+    LowByte = voltage[i] & 0xFF;
+    Serial.write(HighByte);
+    Serial.write(LowByte);
+    delay(10);
+  }
 
   
     
