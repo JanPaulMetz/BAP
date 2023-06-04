@@ -8,7 +8,7 @@ def generate_discrete_sine(freq, sample_rate, duration):
     x_sine = np.arange(duration, step=duration/n_samples)
     frequencies = x_sine * freq
     # 2pi because np.sin takes radians
-    u_discrete = 0.5*np.sin((2 * np.pi) * frequencies)
+    u_discrete = np.sin((2 * np.pi) * frequencies)
     return x_sine, u_discrete
 
 # TODO: randomize this transferfunction generation

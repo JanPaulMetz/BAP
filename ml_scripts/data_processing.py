@@ -114,6 +114,40 @@ def calculate_magnitude_response_b(input_fft, output_fft, indices):
 
     return transfer_magnitude
 
+def calculate_magnitude_response_c(input_magnitudes, output_fft, indices):
+    """ Calculate magnitude response using the magnitude of X_hat (true system input)
+        And output frequency domain data
+    """
+    n_samples_around_index = 2
+
+    transfer_magnitude = []
+
+    for i, index in enumerate(indices):
+        # Define lower and upper index
+        upper_index = int(index + n_samples_around_index)
+        lower_index = int(index - n_samples_around_index)
+
+        # Get absolute values around peak of output fft
+        values_around_peak_out = np.abs(output_fft[lower_index:upper_index])
+
+        # Get power Py = sum[|Y|**2]
+        power_out = np.sum(values_around_peak_out**2)
+
+        # Px = |X|**2 --> |X| is from phasor
+        power_in = input_magnitudes[i]**2
+
+        transfer_magnitude.append(power_out/power_in)
+    # list of transfer magnitudes (corresponding to input freqs)
+    return transfer_magnitude
+
+def calculate_phase_response(input_phase, output_fft, indices):
+    """ Calculate phase response by input_phase and output_fft"""
+    phase = []
+    for i, index in enumerate(indices):
+        output_phase = np.angle(output_fft(int(index)))
+        phase.append(output_phase-input_phase)
+    # List of phases
+    return phase
 
 def calculate_frequency_response(input_fft, output_fft, indices):
     """ Calculate magnitude and phase response.
@@ -169,6 +203,9 @@ def sync_on_ID(data_bits, n_bytes, n_bits):
     print("Sync Failed")
     return BitArray(0,n_bits)
 
+def extract_data():
+    
+
 def get_freq_bin_number(frequencies_list, start_freq, stop_freq, n_bins):
     """  Expects list as input
     Get bin number where this data should be stored"""
@@ -181,6 +218,32 @@ def get_freq_bin_number(frequencies_list, start_freq, stop_freq, n_bins):
 
 def fit_model(unpacked_coordinates):
     """ Fit model by performing polyfit on frequency data"""
+    fit = np.polyfit(unpacked_coordinates[0],unpacked_coordinates[1], deg = 9)
     print("Fit model")
+    # Return model parameters
+    return fit[::-1]
+
+def get_system_input_phasor(input_magnitude, model_magnitude, model_phase):
+    """ Get phasor that is used at the input of the system:
+        Flat response so H = X -> Y=1
+        H^-1 = (1/|H|)exp(-j/_H)
+        |H^-1| = 1/|H|
+        /_H^-1 = -/_H
+    """
+    # /_X_hat
+    # Note: input_phase = 0
+    system_input_phase = -model_phase
+
+    # model_magnitude cant be 0, but if it is, division by zero will raise errors
+    if model_magnitude == 0:
+        return None
+    # |X_hat|:
+    else:
+        system_input_magnitude = input_magnitude/model_magnitude
+    # Return magnitude and phase that the system (H) is driven with
+    # This input is needed for getting a flat response
+    return system_input_magnitude, system_input_phase
+    
+
 # print(get_freq_bin_number([1.61e6], 1.58e6, 1.68e6, 100))
 # print(message_to_float(BitArray('0b11010100110000')))

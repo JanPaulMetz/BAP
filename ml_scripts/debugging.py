@@ -2,6 +2,54 @@ import threading
 import serial
 from time import sleep
 from bitstring import BitArray
+import sys
+from collections import deque
+import numpy as np
+n = 10
+message_type_expected_time = [BitArray('0b00') for _ in range(10)]
+sequence =[ 
+    [BitArray('0b01'), BitArray('0b10')] + [BitArray('0b00') for _ in range(8)],
+    [BitArray('0b00') for _ in range(1)] + [BitArray('0b01'), BitArray('0b10')] + [BitArray('0b00') for _ in range(7)],
+    [BitArray('0b00') for _ in range(2)] + [BitArray('0b01'), BitArray('0b10')] + [BitArray('0b00') for _ in range(6)],
+    [BitArray('0b00') for _ in range(3)] + [BitArray('0b01'), BitArray('0b10')] + [BitArray('0b00') for _ in range(5)],
+    [BitArray('0b00') for _ in range(4)] + [BitArray('0b01'), BitArray('0b10')] + [BitArray('0b00') for _ in range(4)],
+    [BitArray('0b00') for _ in range(5)] + [BitArray('0b01'), BitArray('0b10')] + [BitArray('0b00') for _ in range(3)],
+    [BitArray('0b00') for _ in range(6)] + [BitArray('0b01'), BitArray('0b10')] + [BitArray('0b00') for _ in range(2)],
+    [BitArray('0b00') for _ in range(7)] + [BitArray('0b01'), BitArray('0b10')] + [BitArray('0b00') for _ in range(1)],
+    [BitArray('0b00') for _ in range(8)] + [BitArray('0b01'), BitArray('0b10')],
+    [BitArray('0b10')] +  [BitArray('0b00') for _ in range(9)],
+    [BitArray('0b00') for _ in range(9)] + [BitArray('0b01')],
+    [BitArray('0b00') for _ in range(10)]
+]
+for i in range(12):
+    print(sequence[i])
+    if sequence[i] ==message_type_expected_time:
+        print(i)
+sys.exit()
+
+
+
+ser = serial.Serial('COM11', 115200)
+ser.close()
+ser.open()
+while True:
+    data_bits = BitArray(ser.read(2*160))
+    print(data_bits[0:640])
+    print(data_bits[640:1280])
+    print("helft")
+    print(data_bits[1280:1920])
+    print(data_bits[1920:])
+    print("eind")
+    # print()
+
+
+def next_val(arg1=[0]):
+    arg1[0] = arg1[0]+1
+    return arg1[0]
+
+for i in range(10):
+    print(next_val())
+    
 
 # Data stream serial
 stream_baud_rate= 115200
