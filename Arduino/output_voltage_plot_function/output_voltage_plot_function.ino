@@ -9,8 +9,6 @@ byte ByteArray[2*sweeps*arraySize];
 byte timeByteArray[4*sweeps*arraySize];
 
 
-
-
 void startupCheck(){
     while (1)
     {
@@ -87,24 +85,13 @@ void setup() {
   Serial.begin(115200);
   //Perform a check with the pc if they can send and receive
   startupCheck();
+  //Calculate arrays
   VoltageSweepRead(arraySize, sweeps);
-  //Serial.println("Calculated");
+  //Send arrays
   Serial.write(ByteArray,2*sweeps*arraySize);
   Serial.write(timeByteArray,4*sweeps*arraySize);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-//  sendSweep(voltage);
-//  delay(10);
-//  for(int i = 0; i < size; i++){
-//    HighByte = (voltage[i]>>8) & 0xFF;
-//    LowByte = voltage[i] & 0xFF;
-//    Serial.write(HighByte);
-//    Serial.write(LowByte);
-//    delay(10);
-//  }
-//  readVoltage();
-//  delay(1);
 
 }
