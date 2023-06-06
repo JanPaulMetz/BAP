@@ -30,21 +30,6 @@ input_amplitudes_global = []
 magnitude_response_lock = threading.Lock()
 magnitude_response_global = []
 
-
-def test_thread_target(data_to_process_rx,start_data_extraction):
-    """testing queue""" 
-    while True:
-        start_data_extraction.set()
-        while not data_to_process_rx.poll():
-            print("NOT receiving")
-            time.sleep(1)
-        print("REceiving")
-        # Clear extraction flag
-        start_data_extraction.clear()
-        # Receive data
-        data_to_process = data_to_process_rx.recv()
-        print("REceived data", data_to_process)
-
 def get_data_thread_target(data_to_process_rx, start_data_extraction,
                            trigger_calculate_fft, trigger_get_input_phasor):
     """ Thread for getting input and output data that is used by processing"""
@@ -108,7 +93,6 @@ def calculate_fft_thread_target(trigger_calculate_fft,calculate_fft_ready, bin_s
         
         # Finished
         calculate_fft_ready.set()
-
 
 def get_input_phasor_thread_target(model_params_memory, model_params_lock,
                                    input_register_memory, input_register_lock,
@@ -259,7 +243,6 @@ def calculate_magnitude_response_thread_target(get_input_phasor_ready, calculate
             magnitude_response_global = magnitude_response.copy()
         calculate_magnitude_ready.set()
 
-
 def store_samples_thread_target(calculate_magnitude_ready, start_data_extraction, magnitude_samples_tx):
     """ Thread for storing samples that are calculated (phase and mag)
         Also triggers data extraction
@@ -295,7 +278,6 @@ def store_samples_thread_target(calculate_magnitude_ready, start_data_extraction
 
         start_data_extraction.set()
 
-
 def data_processing_process_target(data_to_process_rx, start_data_extraction,   # data to process connection
                                    model_params_memory, model_params_lock,       # model params memory
                                    input_register_memory, input_register_lock, # input register memory
@@ -308,11 +290,6 @@ def data_processing_process_target(data_to_process_rx, start_data_extraction,   
     get_input_phasor_ready = threading.Event()
     calculate_magnitude_ready= threading.Event()
 
-    test_thread = threading.Thread(
-        target=test_thread_target,
-        args=(data_to_process_rx,start_data_extraction)
-    )
-    # test_thread.start()
 # Create Threads
 
     # Get data

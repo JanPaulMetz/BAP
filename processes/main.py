@@ -24,6 +24,8 @@ n_bytes = int(2*n_packages)
 n_bits = int(8*n_bytes)
 
 # MCU serial config
+mcu_port = 'COM10'
+mcu_baud_rate = 115200
 
 # System constants
 sample_rate = 65e6              # [samples/sec]
@@ -120,12 +122,16 @@ def main():
     # data_processing_process --> read_data_stream_process
     # default: set
     start_data_extraction = multiprocessing.Event()
-    start_data_extraction.set()
+
+    mcu_not_ready = multiprocessing.Event()
+    mcu_ready = multiprocessing.Event()
 
 # Create processes
     # main process
     main_process = multiprocessing.Process(
-        target=main_process_target, args=(model_params_shared_array, model_params_lock)
+        target=main_process_target,
+        args=(model_params_shared_array, model_params_lock,
+              mcu_ready, start_data_extraction)
     )
     # datastream reading
     read_datastream_process = multiprocessing.Process(
@@ -141,8 +147,12 @@ def main():
               input_register_shared_array, input_register_lock,     # input_register shared memory
               bin_size, sample_rate, magnitude_samples_tx)
     )
-    # main
+
     # communication
+    communication_process = multiprocessing.Process(
+        target=communication_process_target,
+        args=(mcu_port, mcu_baud_rate, mcu_not_ready, mcu_ready)
+    )
     # data training
     data_training_process = multiprocessing.Process(
         target=data_training_process_target,
@@ -154,17 +164,28 @@ def main():
     main_process.start()
     read_datastream_process.start()
     data_processing_process.start()
+    communication_process.start()
     data_training_process.start()
     
 
     try:
         while True:
             time.sleep(1)
+            if mcu_not_ready.is_set():
+                print("NO PORT or FAILED MCU HANDSHAKE")
+                # terminate process at keyboard interrupt
+                main_process.terminate()
+                read_datastream_process.terminate()
+                data_processing_process.terminate()
+                communication_process.terminate()
+                data_training_process.terminate()
+                break
     except KeyboardInterrupt:
         # terminate process at keyboard interrupt
         main_process.terminate()
         read_datastream_process.terminate()
         data_processing_process.terminate()
+        communication_process.terminate()
         data_training_process.terminate()
 
 
