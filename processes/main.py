@@ -28,14 +28,14 @@ n_bits = int(8*n_bytes)
 # System constants
 sample_rate = 65e6              # [samples/sec]
 bin_size = int(n_packages-2)    # binsize of timedata [samples]
-bandwith = [1.58e6, 1.68e6]     # bandwith of system  [Hz]
+bandwidth = [0,1]# [1.58e6, 1.68e6]     # bandwith of system  [Hz]
 
 
 def main():
     """ Main function: initializes required globals, flags etc. Then creates multiple processes"""
 # mmaps (global memory)
 
-    # Model parameters |ID|magnitude weights| = |1|10| (size)
+    # Model parameters history |ID|magnitude weights| = |1|10| (size)
     model_params_filename = "model_parameters.bin"
     model_params_lock = multiprocessing.Lock()
     model_params_numcols = 11
@@ -107,11 +107,14 @@ def main():
 
 # Pipe's (shared memory of process couples)
 
-    # read_data_stream_process --> data_processing_process 
+    # read_data_stream_process --> data_processing_process
     data_to_process_tx, data_to_process_rx = multiprocessing.Pipe()
 
-    # magnitude samples (process_data) --> tran_data 
+    # magnitude samples (process_data) --> train_data 
     magnitude_samples_tx, magnitude_samples_rx = multiprocessing.Pipe()
+
+    # Updated model parameters train_data-->main
+    new_model_parameters_tx, new_model_parameters_rx = multiprocessing.Pipe()
 
 # Flags (signals)
     # data_processing_process --> read_data_stream_process
@@ -143,7 +146,7 @@ def main():
     # data training
     data_training_process = multiprocessing.Process(
         target=data_training_process_target,
-        args=(magnitude_samples_rx,)
+        args=(magnitude_samples_rx,bandwidth,new_model_parameters_tx)
     )
 
 

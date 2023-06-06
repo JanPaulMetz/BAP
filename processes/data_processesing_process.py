@@ -8,6 +8,7 @@ import time
 from scipy import signal, fft
 
 from data_processing_functions import *
+
 # Process globals
 system_output_data_lock = threading.Lock()
 system_output_data = []
@@ -284,9 +285,13 @@ def store_samples_thread_target(calculate_magnitude_ready, start_data_extraction
             frequencies = input_frequencies_global.copy()
 
         # Load in one list |freqs|temp|magnitude response|
-        list_to_send = [frequencies] + [temperature] + [magnitude_response]
+        temperature = [temperature] # For concatenating it in list
+        list_to_send = frequencies.tolist() + temperature + magnitude_response
 
         print("LIST TO SEND", list_to_send)
+        
+        # Send magnitude samples to the data training process
+        magnitude_samples_tx.send(list_to_send)
 
         start_data_extraction.set()
 
