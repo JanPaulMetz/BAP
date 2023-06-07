@@ -1,27 +1,30 @@
+#include "madfunctions.h"
+#include "serialfunctions.h"
+
 #define LED 2
 #define PWMpin 25
 #define analogreadpin 4
-#define Size 256 
+#define Size 10
 #define resolution 8
-#define percentToKeep 20
+#define percentToKeep 10
 
 int lambda_calibration(){  //Function to calibrate the lambda control. 
-  int delayTime = 1;
+  int delayTime = 1000;
   int voltage[Size];
   int timestamp[Size];
   int outliers[Size];
   int maxVoltage, minVoltage, meanVoltage;
   int count = 0;
-  float madThreshold = 1.0;  // Threshold for outlier detection
+  float madThreshold = 3.0;  // Threshold for outlier detection
   bool maxVoltageset = false, minVoltageset = false;
 
   // Calculate the number of values to keep
   int numToKeep = (Size * percentToKeep) / 100;
 
-
-
   //sweep voltage and measure the output back and put in array with its timestamps in another array. 
-  sweepMeasure(voltage, timestamp, delayTime);
+  //sweepMeasure(voltage, timestamp, delayTime, Size);
+  //sineMeasure(voltage, timestamp, delayTime, Size);
+  pulseMeasure(voltage,timestamp,delayTime,Size);
 
   //Cast int array to uint16_t array to be easier to send. 
   for (int i = 0; i < Size; i++) {
@@ -44,7 +47,7 @@ int lambda_calibration(){  //Function to calibrate the lambda control.
   // Print the cleaned array (remove outliers)
   for (int i = 0; i < numToKeep; i++) {
     int deviation = abs(voltage[i] - median);
-    if (deviation / mad > madThreshold) {
+    if (deviation / mad > madThreshold and !maxVoltageset) {
       outliers[i] = 1;
       //voltage[i] = median; //Set outliers to the median, so it can never be the extreme value.
       count++; //Set the index of the maximum number to a non outlier. 
@@ -70,7 +73,7 @@ int lambda_calibration(){  //Function to calibrate the lambda control.
   // Print the cleaned array (remove outliers)
   for (int i = 0; i < numToKeep; i++) {
     int deviation = abs(voltage[i] - median);
-    if (deviation / mad > madThreshold) {
+    if (deviation / mad > madThreshold and !minVoltageset) {
       outliers[i] = 1;
       //voltage[i] = median; //Set outliers to the median, so it can never be the extreme value.
       count++; //Set the index of the maximum number to a non outlier. 
@@ -110,14 +113,16 @@ bool lambda_calibration_derivative(int meanVoltage){
   
 }
 
+
 void setup() {
+  dacWrite(PWMpin, normalizeToBits(0.6));
   // put your setup code here, to run once:
   Serial.begin(115200);
-
   //Perform a check with the pc if they can send and receive
   startupCheck();
 
   int Meanvoltage = lambda_calibration(); 
+  dacWrite(PWMpin, normalizeToBits(0.75));
 
 }
 
@@ -126,9 +131,9 @@ void loop() {
 
 }
 
-void sweepMeasure(int* voltage, int* timestamp, int delayTime){
+void sweepMeasure(int* voltage, int* timestamp, int delayTime, int sweepSize){
   int startTime = millis();
-  for(int i = 0; i<Size; i++){   //Check for every possible voltage level if it exceeds the minimum or maximum. 
+  for(int i = 0; i<sweepSize; i++){   //Check for every possible voltage level if it exceeds the minimum or maximum. 
     dacWrite(PWMpin, i);
     delay(delayTime);
     voltage[i] = analogRead(analogreadpin);
@@ -137,82 +142,45 @@ void sweepMeasure(int* voltage, int* timestamp, int delayTime){
   }
 }
 
-// Insertion Sort algorithm (descending order, without timestamps)
-void insertionSort(int arr[], int length) {
-  for (int i = 1; i < length; i++) {
-    int key = arr[i];
-    int j = i - 1;
-    while (j >= 0 && arr[j] < key) {
-      arr[j + 1] = arr[j];
-      j = j - 1;
+void pulseMeasure(int* voltage, int* timestamp, int delayTime, int sweepSize){
+  int startTime = millis();
+  float minVoltage = 0.65;
+  float maxVoltage = 0.75;
+  float voltageToSend;
+  for(int i = 0; i<sweepSize; i++){   //Check for every possible voltage level if it exceeds the minimum or maximum.
+    voltageToSend = normalizeToBits(minVoltage) + normalizeToBits(maxVoltage - minVoltage)/sweepSize*i;
+    dacWrite(PWMpin, int(voltageToSend));
+    delay(delayTime);
+    voltage[i] = analogRead(analogreadpin);
+    timestamp[i] = millis()-startTime;
+    
+  }
+}
+
+void sineMeasure(int* voltage, int* timestamp, int delayTime, int sineSize){
+  int startTime = millis();
+  int amplitude = 64;
+  int offset = 128;
+  int writeValue;
+  int noise_amplitude = 2;
+  for (int i = 0; i < sineSize/180; i++){
+    for (int deg = 0; deg < 360; deg = deg + 2) {
+      // Calculate sine and write to DAC
+      writeValue = int(offset + amplitude * sin(deg * PI / 180)) + random(-noise_amplitude, noise_amplitude);
+//      if (deg == 90){
+//        writeValue = writeValue + outlierAdd;
+//      }
+//      else if(deg == 270){
+//        writeValue = writeValue - outlierAdd;
+//      }
+      dacWrite(PWMpin, writeValue);
+      delay(delayTime);
+      voltage[i*180+deg/2] = analogRead(analogreadpin);
+      timestamp[i*180+deg/2] = millis()-startTime;
     }
-    arr[j + 1] = key;
   }
 }
-
-// Insertion Sort algorithm (descending order)
-void insertionSortDesc(int arr[], int timearr[], int length) {
-  for (int i = 1; i < length; i++) {
-    int key = arr[i];
-    int timeKey = timearr[i];
-    int j = i - 1;
-    while (j >= 0 && arr[j] < key) {
-      arr[j + 1] = arr[j];
-      timearr[j + 1] = timearr[j];
-      j = j - 1;
-    }
-    arr[j + 1] = key;
-    timearr[j + 1] = timeKey;
-  }
-}
-
-// Insertion Sort algorithm (ascending order)
-void insertionSortAsc(int arr[], int timearr[],int outlierarr[], int length) {
-  for (int i = 1; i < length; i++) {
-    int key = arr[i];
-    int timeKey = timearr[i];
-    int outlierKey = outlierarr[i];
-    int j = i - 1;
-    while (j >= 0 && arr[j] > key) {
-      arr[j + 1] = arr[j];
-      timearr[j + 1] = timearr[j];
-      outlierarr[j + 1] = outlierarr[j];
-      j = j - 1;
-    }
-    arr[j + 1] = key;
-    timearr[j + 1] = timeKey;
-    outlierarr[j + 1] = outlierKey;
-  }
-}
-
-
-// Calculate the median of the array values
-int calculateMedian(int arr[], int length) {
-  if (length % 2 == 0) {
-    return (arr[length / 2 - 1] + arr[length / 2]) / 2;
-  }
-  else {
-    return arr[length / 2];
-  }
-}
-
-// Calculate the Median Absolute Deviation (MAD) of the array values
-float calculateMAD(int arr[], int length, int median) {
-  int deviations[length];
-  for (int i = 0; i < length; i++) {
-    deviations[i] = abs(arr[i] - median);
-  }
-
-  insertionSort(deviations, length);
-
-  if (length % 2 == 0) {
-    return (deviations[length / 2 - 1] + deviations[length / 2]) / 2.0;
-  }
-  else {
-    return deviations[length / 2];
-  }
-}
-
+  
 void startupCheck(){
     while (1)
     {
@@ -231,71 +199,14 @@ void startupCheck(){
     }
 }
 
-void sendData(int Data[],int Time[],int bits){
-    //Variables used for sending to pc.
-    uint16_t dataBits[bits];
-    uint32_t timeBits[bits];
-
-    byte outputByteArray[2*bits]; //Voltage that have been measured out of the interferometer.
-    byte timeByteArray[4*bits];
-
-    //Define variables for savind and sending. 
-    byte HighByte, MedHighByte, MedLowByte, LowByte;
-    //Send to PC:
-    for(int i = 0; i < bits; i++){
-      dataBits[i] = static_cast<uint16_t>(Data[i]);
-      timeBits[i] = static_cast<uint32_t>(Time[i]);
-      //Put the voltage in 2 bytes and put it in the voltage array to send
-      HighByte = (dataBits[i]>>8) & 0xFF;
-      LowByte = dataBits[i] & 0xFF;
-      //Create data array with measured data to send via uart
-      outputByteArray[2*i] = HighByte;
-      outputByteArray[1+2*i] = LowByte;
-      
-      //Put the timestamp in 4 bytes and put in the time array to send
-      HighByte = (timeBits[i]>>24) & 0xFF;
-      MedHighByte = (timeBits[i]>>16) & 0xFF;
-      MedLowByte = (timeBits[i]>>8) & 0xFF;
-      LowByte = timeBits[i] & 0xFF;
-      //Create timestamp array to send
-      timeByteArray[4*i] = HighByte;
-      timeByteArray[1+4*i] = MedHighByte;
-      timeByteArray[2+4*i] = MedLowByte;
-      timeByteArray[3+4*i] = LowByte;
-    }
-    Serial.write(outputByteArray,2*bits);
-    Serial.write(timeByteArray,4*bits);
-  }
-
-void sendConstant(int value){
-  uint16_t bits;
-  byte output[2];
-  byte HighByte, LowByte;
-  bits = static_cast<uint16_t>(value);
-  HighByte = (bits>>8) & 0xFF;
-  LowByte = bits & 0xFF;
-  output[0] = HighByte;
-  output[1] = LowByte;
-  Serial.write(output,2);
+float normalizeToBits(float voltage){
+  int bits;
+  bits = voltage/3.3*255;
+  return bits;
 }
 
-void sendArray(int Data[],int bits){
-    //Variables used for sending to pc.
-    uint16_t dataBits[bits];
-
-    byte outputByteArray[2*bits]; //Voltage that have been measured out of the interferometer.
-
-    //Define variables for savind and sending. 
-    byte HighByte, LowByte;
-    //Send to PC:
-    for(int i = 0; i < bits; i++){
-      dataBits[i] = static_cast<uint16_t>(Data[i]);
-      //Put the voltage in 2 bytes and put it in the voltage array to send
-      HighByte = (dataBits[i]>>8) & 0xFF;
-      LowByte = dataBits[i] & 0xFF;
-      //Create data array with measured data to send via uart
-      outputByteArray[2*i] = HighByte;
-      outputByteArray[1+2*i] = LowByte;
-    }
-    Serial.write(outputByteArray,2*bits);
-  }
+float normalizeToVoltage(int bits){
+  int voltage;
+  voltage = bits/255*3.3;
+  return voltage;
+}
