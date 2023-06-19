@@ -1,17 +1,20 @@
+""" Contains class for GUI """
+import numpy as np
 import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout,QHBoxLayout, QWidget, QLabel, QLineEdit, QPushButton
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout,QHBoxLayout,QWidget, QLabel, QLineEdit, QPushButton
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 import matplotlib.pyplot as plt
-import numpy as np
-import threading
-import timepip 
-
 
 class MainWindow(QMainWindow):
     def __init__(self, update_callback, sweep_callback):
+                # frequency_plot_rx, temperature_plot_rx, magnitude_plot_rx,
+                #         magnitude_data_updated):
         super().__init__()
 
+        # Update user input
         self.update_callback = update_callback
+
+        # Trigger sweep
         self.sweep_callback = sweep_callback
 
         # Set window title
@@ -95,58 +98,17 @@ class MainWindow(QMainWindow):
             return float(text)
         except ValueError:
             return 0.0
-
-    def update_plot(self, frequencies, amplitudes):
+    
+    def update_plot(self, omega, magnitudes):
         # Generate x values (time) for the plot
-        x = np.linspace(0, 1, 1000)
+        x = omega
 
         # Generate y values (amplitude) for the plot
-        y = sum([amplitude * np.sin(2 * np.pi * frequency * x) for frequency, amplitude in zip(frequencies, amplitudes)])
+        y = magnitudes
 
         # Plot the data
         self.axes.clear()
-        self.axes.plot(x, y)
+        self.axes.semilogx(x, y)
 
         # Update the canvas
         self.canvas.draw()
-
-def main():
-    # Set initial values
-    frequencies = [0.0, 0.0, 0.0]
-    amplitudes = [0.0, 0.0, 0.0]
-
-    def update_callback(new_frequencies, new_amplitudes):
-        nonlocal frequencies, amplitudes
-        frequencies = new_frequencies
-        amplitudes = new_amplitudes
-
-    def sweep_callback():
-        print("Frequency sweep initiated.")
-    
-    def update_plot(window):
-        while True:
-            # Update the plot based on the variables in main
-            window.update_plot(frequencies, amplitudes)
-            # Sleep for a certain interval
-            time.sleep(1)
-
-    # Create the application
-    app = QApplication(sys.argv)
-
-    # Create the main window
-    window = MainWindow(update_callback=update_callback, sweep_callback=sweep_callback)
-
-    # Start a separate thread to continuously update the plot
-    update_thread = threading.Thread(target=update_plot)
-    update_thread.daemon = True
-    update_thread.start()
-
-    # Show the main window
-    window.show()
-
-    # Start the application event loop
-    sys.exit(app.exec_())
-
-
-if __name__ == "__main__":
-    main()

@@ -194,7 +194,7 @@ def sync_on_ID(data_bits, n_bytes, n_bits):
     package_length = 2*8
     for i in range(2*n_bytes):
         # Check each 2 byte on package ID
-        message_type = data_bits[package_length*i: package_length*i + 2]
+        message_type = data_bits[pacaskage_length*i: package_length*i + 2]
         # Check for each 2 bytes the message type
         if message_type == BitArray("0b01"):
             print("Synced Successfully")
@@ -241,7 +241,6 @@ def get_system_input_phasor(input_magnitude, model_magnitude, model_phase):
     else:
         system_input_magnitude = input_magnitude/model_magnitude
     # Return magnitude and phase that the system (H) is driven with
-    # This input is needed for getting a flat response
     return system_input_magnitude, system_input_phase
     
 

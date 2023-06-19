@@ -28,7 +28,7 @@ def read_datastream_thread_target(port, baud_rate, n_packages, data_bin, data_lo
 
     # Always fill buffer
     n_bytes = 2*n_packages
-    buffer_size = 2*n_bytes*2
+    buffer_size = 2*n_bytes*2       
     print("opened")
     while True:
         data_to_store = stream_serial.read(buffer_size)

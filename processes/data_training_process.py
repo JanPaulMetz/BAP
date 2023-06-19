@@ -41,7 +41,7 @@ def sample_manager_thread_target(magnitude_samples_rx, bandwidth):
     while True:
         # Block untill new samples are received
         while not magnitude_samples_rx.poll():
-            print("waiting for magnitude samples")
+            # print("waiting for magnitude samples")
             time.sleep(0.1)
         
         # Receive samples |Freq1|Freq2|Freq3|temperature|magnitude1|magnitude2|magnitude3|
@@ -74,7 +74,7 @@ def sample_manager_thread_target(magnitude_samples_rx, bandwidth):
 
         # Count new samples
         new_sample_count += 1
-        print("SAMPLE COUNT", new_sample_count)
+        # print("SAMPLE COUNT", new_sample_count)
         # After n new samples, start training
         if new_sample_count >= train_after_n_samples:
             # Reset new sample count
@@ -83,7 +83,8 @@ def sample_manager_thread_target(magnitude_samples_rx, bandwidth):
             start_training.set()
 
 
-def train_magnitude_thread_target(new_model_parameters_tx):
+def train_magnitude_thread_target(new_model_parameters_tx, frequency_plot_tx,
+                                  temperature_plot_tx,magnitude_plot_tx, magnitude_data_updated):
     """ Train the data bin"""
     global magnitude_samples
     global model_parameters
@@ -107,10 +108,18 @@ def train_magnitude_thread_target(new_model_parameters_tx):
 
         # Get freq and temp as array
         frequency, temperature, magnitude = zip(*samples_unpacked)
+
         # put in array
         frequency = np.array(frequency)
         temperature = np.array(temperature)
         magnitude = np.array(magnitude)
+        
+        # Send sampels to plotter
+        frequency_plot_tx.send(frequency)
+        temperature_plot_tx.send(temperature)
+        magnitude_plot_tx.send(magnitude)
+        # Set flag that is telling the data is in the pipe
+        magnitude_data_updated.set()
 
         # Start fitting the unpacked data
         magnitude_fit = np.polyfit(frequency, magnitude, deg=9)
@@ -123,7 +132,8 @@ def train_magnitude_thread_target(new_model_parameters_tx):
         new_model_parameters_tx.send(model_params)
 
 
-def data_training_process_target(magnitude_samples_rx, bandwidth, new_model_parameters_tx):
+def data_training_process_target(magnitude_samples_rx, bandwidth, new_model_parameters_tx,
+                                 frequency_plot_tx, temperature_plot_tx,magnitude_plot_tx, magnitude_data_updated):
     """ Target for process data training"""
 # Create Threads
     # Sample manager
@@ -134,7 +144,8 @@ def data_training_process_target(magnitude_samples_rx, bandwidth, new_model_para
     # Train Magnitude
     train_magnitude_thread = threading.Thread(
         target=train_magnitude_thread_target,
-        args=(new_model_parameters_tx,)
+        args=(new_model_parameters_tx,frequency_plot_tx,
+              temperature_plot_tx,magnitude_plot_tx, magnitude_data_updated)
     )
 
 # Start Threads

@@ -97,7 +97,7 @@ def calculate_fft_thread_target(trigger_calculate_fft,calculate_fft_ready, bin_s
 def get_input_phasor_thread_target(model_params_memory, model_params_lock,
                                    input_register_memory, input_register_lock,
                                    trigger_get_input_phasor, get_input_phasor_ready,
-                                   bin_size, sample_rate):
+                                   bin_size, sample_rate, current_id_tx):
     """ Thread that gets the input phasor that is used to drive the system
         system_input_magnitude = w.T*phi(f)
         where w is the model weight vector, obtained from model params memory
@@ -118,6 +118,9 @@ def get_input_phasor_thread_target(model_params_memory, model_params_lock,
         # Get current ID
         with system_output_data_lock:
             current_id = system_output_data[0]
+        
+        # Send current ID to control process:
+        current_id_tx.send(current_id)
 
         # Get model params from model params memory
         with model_params_lock:
@@ -281,7 +284,9 @@ def store_samples_thread_target(calculate_magnitude_ready, start_data_extraction
 def data_processing_process_target(data_to_process_rx, start_data_extraction,   # data to process connection
                                    model_params_memory, model_params_lock,       # model params memory
                                    input_register_memory, input_register_lock, # input register memory
-                                   bin_size, sample_rate, magnitude_samples_tx):
+                                   bin_size, sample_rate, magnitude_samples_tx,
+                                   current_id_tx, second_feature_memory,
+                                   second_feature_lock):
     """ Target function for multiprocessing process"""
 # Flags (triggers)
     trigger_calculate_fft = threading.Event()
@@ -309,7 +314,7 @@ def data_processing_process_target(data_to_process_rx, start_data_extraction,   
         args=(model_params_memory, model_params_lock,
               input_register_memory, input_register_lock,
               trigger_get_input_phasor, get_input_phasor_ready,
-              bin_size, sample_rate)
+              bin_size, sample_rate,current_id_tx)
     )
     # Calculate magnitude response
     calculate_magnitude_response_thread = threading.Thread(
