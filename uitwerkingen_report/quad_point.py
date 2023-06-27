@@ -15,6 +15,9 @@ def discrete_sine(sample_rate, frequency, num_samples):
     signal = np.sin(2*np.pi*frequency*time_ax)
     return signal, time_ax
 
+def first_derivative(x, amplitude, frequency, phase, offset_slope):
+    return (2 * np.pi * frequency)*amplitude*np.cos(2* np.pi * frequency * x + phase) + offset_slope
+
 def second_derivative(x, amplitude, frequency, phase):
     return -((2 * np.pi * frequency)**2)*amplitude*np.sin(2* np.pi * frequency * x + phase)
 
@@ -26,8 +29,11 @@ def second_derivative(x, amplitude, frequency, phase):
 # file_name = 'reactiontime.csv'
 # file_name = 'Step4.csv'
 file_name = 'rampcm.csv'
+# file_name = '0.7-0.9ramp-1mV-steps-ramp-time(350ms)3.csv'
+# file_name = 'C:\Users\jpmet\BAP\BAP\Metingen 22-06-23\0.7-0.9ramp-1mV-steps-ramp-time(350ms)3.csv'
 df = pd.read_csv(file_name)
 x_data = df['Timestamp']
+# x_data = df['']
 y_data = df['Data']
 
 # # Use half of data, since it is mirrored
@@ -86,15 +92,27 @@ plt.show()
 image_name = "sine_fit_derivative.svg"
 image_format = "svg"
 fig.savefig(image_name, format=image_format, dpi=1200)
-roots = fsolve(second_derivative, (-1,1), args=(amplitude_opt, frequency_opt, phase_opt))
-print("roots", roots)
+
+second_derivative_fitted = second_derivative(x_data,amplitude_opt,frequency_opt, phase_opt)
+error = 0.0001
+print(type(second_derivative_fitted), second_derivative_fitted)
+zero_indices = np.where(np.abs(second_derivative_fitted)<error)[0]
+print("zero_indices", zero_indices)
+roots = fsolve(second_derivative, x_data[zero_indices], args=(amplitude_opt, frequency_opt, phase_opt))
+roots = np.unique(np.around(roots, decimals=6))
+derivs = first_derivative(roots, amplitude_opt, frequency_opt, phase_opt, offset_slope_opt)
+print("roots", roots, np.sign(derivs))
+quad_points = sine_func(roots, amplitude_opt, frequency_opt, phase_opt, offset_opt, offset_slope_opt)
 # Plot the original data and the fitted curve
 fig = plt.figure()
-plt.scatter(x_data, y_data, label='Original Data', marker='.')
-plt.plot(x_data, sine_func(x_data, amplitude_opt, frequency_opt, phase_opt, offset_opt, offset_slope_opt),color='red', label='Fitted Curve')
+
+plt.scatter(x_data, y_data, label='Original Data', marker='o', color='red')
+plt.plot(x_data, sine_func(x_data, amplitude_opt, frequency_opt, phase_opt, offset_opt, offset_slope_opt),color='blue', label='Fitted Curve')
+plt.scatter(roots, quad_points, color='blue', marker='x')
 plt.xlabel("Time [s]")
 plt.ylabel("DC-output Interferometer [V]")
 plt.legend()
+plt.grid()
 plt.show()
 image_name = "sine_fit.svg"
 image_format = "svg"

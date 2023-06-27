@@ -1,4 +1,6 @@
-""" Module containing functions that are used by the process read datastream"""
+F""" Module containing functions that are used by the process read datastream"""
+import numpy as np
+
 from bitstring import BitArray
 
 def sync_on_id(data_bits, n_bytes):
@@ -40,7 +42,7 @@ def sync_on_id(data_bits, n_bytes):
     message_type_history = []
     empty = []
     for j in range(2):
-        # For each 2 bytes one to the right
+        # For each 2 bytes shift one to the right
         print("J", j)
         id_found = False
         unexpected_sequence = False
@@ -100,11 +102,45 @@ def single_point_to_decimal(package_binary):
     """ Convert two's complement to float """
     # If first bit is 1
     # print("error shit", package_binary)
-    if package_binary[0] == 1:
-        # print(~package_binary)
-        decimal = ~package_binary
-    
-        return -(decimal.uint +1)/(2**len(package_binary))
+    if type(package_binary) == bytes:
+        if package_binary[0] == 1:
+            # print(~package_binary)
+            decimal = ~package_binary
+        
+            return -(decimal.uint +1)/(2**len(package_binary))
+        else:
+            return (package_binary.uint)/(2**len(package_binary))
+        
+    else: # Hex
+        print("HEZXXZ", type(package_binary))
+        package_int = package_binary
+        # package_int = int(package_binary, 16)
+        # If the first bit is 1 (negative value)
+        if (package_int & 0x8000) != 0:
+            # Calculate the two's complement by inverting the bits and adding 1
+            decimal = -((~package_int & 0xFFFF) + 1)
+            return decimal / 2**16
+        else:
+            return package_int / 2**16
+        
+def unsigned_to_decimal(unsigned):
+    """Offset binary 14 bits"""
+    decimal = unsigned - 2**(14-1)
+    return decimal
+
+def hex_to_float(hex_value, size):
+    if size == 16:
+        int_value = np.int16(hex_value)
+        return np.float16(int_value)
+    elif size == 32:
+        int_value = np.int32(hex_value)
+        return np.float32(int_value)
     else:
-        return (package_binary.uint)/(2**len(package_binary))
+        raise Exception("Parameter size not 16 or 32: " + str(size))
+
+# if __name__ == "__main__":
+#     print(single_point_to_decimal(800))
+#     print(unsigned_to_decimal(0e3))
+#     print(hex_to_float())
+
     

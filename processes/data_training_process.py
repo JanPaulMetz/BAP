@@ -122,7 +122,7 @@ def train_magnitude_thread_target(new_model_parameters_tx, frequency_plot_tx,
         magnitude_data_updated.set()
 
         # Start fitting the unpacked data
-        magnitude_fit = np.polyfit(frequency, magnitude, deg=9)
+        magnitude_fit = np.polyfit(frequency, magnitude, deg=7)
 
         # magnitude_fit contains parameters but reversed convention
         model_params = magnitude_fit[::-1]

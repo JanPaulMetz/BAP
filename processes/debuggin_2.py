@@ -62,12 +62,38 @@ if not mcu_ready:
     
     """
     # RX_LED =  
-    
+from data_conversion import flatten, to_bytes, float_to_hex  
+from math import ceil
 RX_LED = ord('a')
 RX_PHASOR_MAGNITUDE = ord('h')
 MODEL_ID = ord('j')
 UPDATE_MODEL = ord('k')
+FP_SIZE = 16
+FP_DATA_BYTES = ceil(FP_SIZE/8)
+POLY_DIM = 10
+EXTRA_DIM = 5
+FREQ_DIM = 4
 
+# Struct of commands
+cmds = { "set_led": 0b01100001,
+        "request_amplitude": 0b01100010,
+        "param_frequencies": 0b01100011,
+        "param_polynomial_features": 0b01100100,
+        "param_extra_feature": 0b01100101,
+        "param_magnitude_weights": 0b01100110,
+        "param_phase_weights": 0b01100111,
+        "param_phasor_magnitude": 0b01101000,
+        "param_phasor_phase": 0b01101001,
+        "param_model_id": 0b01101010
+        }
+polynomial_features = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+                [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+                [3, 3, 3, 3, 3, 3, 3, 3, 3, 3]]
+
+raw_data = [float_to_hex(a, FP_SIZE) for a in flatten(polynomial_features)]
+byte_array = bytes([cmds['param_polynomial_features']] + flatten([to_bytes(i, 2) for i in raw_data]))
+
+mcu_serial.write(byte_array)
 while True:
     print("A",RX_LED )
     time.sleep(1)

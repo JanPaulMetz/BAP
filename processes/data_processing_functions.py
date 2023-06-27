@@ -14,16 +14,23 @@ def get_system_input_phasor(input_magnitude, model_magnitude):
         system_magnitude = input_magnitude/model_magnitude
     return system_magnitude
 
-def create_frequency_vector(frequency):
-    """ Creates frequency vector 
-        phi(f) = [1, f, f^2, f^3 ...].T (size = 10)
-    """
-    size = 10
-    frequency_vector = np.zeros(size)
-    for i in range(size):
-        frequency_vector[i] = frequency**i
+def normalize(feature, range):
+        """ Functiona that is normalizing"""
+        return 1.275 + (1.25 + (feature - (range[0] + range[1])/2) / ((range[1] - range[0])/2))
 
-    return frequency_vector
+def create_feature_vector_normalized(feature, feature_range):
+    """ Creates frequency vector 
+        phi(f) = [1, f, f^2, f^3 ..., f^7].T (size = 10)
+    """
+    size = 8
+    # feature_vector = np.zeros(size)
+    feature_vector = [feature**i for i in range(size)]
+    feature_vector_normalized = [normalize(feature, feature_range) for feature in feature_vector]
+
+    # for i in range(size):
+    #     feature_vector[i] = feature**i
+
+    return feature_vector_normalized
 
 def get_fft_index(frequency, sample_rate, bin_size):
     """ Get index at which this frequency component is placed 

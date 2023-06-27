@@ -6,6 +6,7 @@ import multiprocessing
 import queue
 import mmap
 import sys
+import warnings
 
 # GUI imports
 from GUI_class import *
@@ -13,12 +14,13 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout,QHBoxLayout, 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 import matplotlib.pyplot as plt
 
-# Import processes
+# Import processesF
 from read_datastream_process import *
 from data_processesing_process import *
 from system_control_process import *
 from communication_process import *
 from data_training_process import *
+from simulation_process import *
 
 ## System configurations:
 
@@ -37,27 +39,28 @@ mcu_baud_rate = 115200
 
 # System constants
 sample_rate = 65e6              # [samples/sec]
-bin_size = int(n_packages-2)    # binsize of timedata [samples]
-bandwidth = [0,1]# [1.58e6, 1.68e6]     # bandwith of system  [Hz]
+bin_size = int(n_packages-3)    # binsize of timedata [samples]
+bandwidth = [0,1]#[1.58e6, 1.68e6]# [0,1]# [1.58e6, 1.68e6]     # bandwith of system  [Hz]
 
 
 def main():
     """ Main function: initializes required globals, flags etc. Then creates multiple processes"""
 # mmaps (global memory)
 
-    # Model parameters history |ID|magnitude weights| = |1|10| (size)
+    # Model parameters history |ID|magnitude weights| = |1|50| (size)
     model_params_filename = "model_parameters.bin"
     model_params_lock = multiprocessing.Lock()
-    model_params_numcols = 11
+    model_params_numcols = 65
     default_params = np.random.rand(1,model_params_numcols)
     # Make test params
     default_params[0,0] = 2
     tes_params1 = default_params.copy()
     
-    default_params[0,0] = 0.4722900390625
+    # default_params[0,0] = 0.4722900390625
+    default_params[0,0] = 7738
     tes_params2 = default_params.copy()
 
-    default_params[0,0] = 5
+    default_params[0,0] = 1333
     tes_params3 = default_params.copy()
     with open(model_params_filename, mode="w+b") as file:
         # Get file size and truncate file to that size
@@ -82,13 +85,14 @@ def main():
         # Close file
         model_params_mmaped_file.close()
     
-    # Input register |ID|freq1|freq2|freq3|amplitude1|amplitude2|amplitude3| --> size = 7
+    # Input register |ID|freq1|freq2|freq3|freq4|amplitude1|amplitude2|amplitude3|amplitude4| --> size = 7
     input_register_filename = "input_register.bin"
     input_register_lock = multiprocessing.Lock()
-    input_register_numcols = 7
+    input_register_numcols = 9
 
     default_input = np.random.rand(1,input_register_numcols)
-    default_input[0,0] = 0.4722900390625
+    default_input[0][0] = 7738
+    # default_input[0,0] = 0.4722900390625
 
     with open(input_register_filename, mode="w+b") as file:
         # Get filesize (columns)
@@ -134,9 +138,9 @@ def main():
         second_feature_mmaped_file.close()
 
 # Locks (global locks)
-    
+    status_lock = multiprocessing.Lock()
 # Queue's (shared memory of multiple processes)
-
+    status = multiprocessing.Queue()
 # Pipe's (shared memory of process couples)
 
     # read_data_stream_process --> data_processing_process
@@ -162,6 +166,10 @@ def main():
     frequency_plot_tx, frequency_plot_rx = multiprocessing.Pipe()
     temperature_plot_tx, temperature_plot_rx = multiprocessing.Pipe()
     magnitude_plot_tx, magnitude_plot_rx = multiprocessing.Pipe()
+
+    # Simulation
+    simulation_datastream_tx, simulation_datastream_rx = multiprocessing.Pipe()
+    simulation_mcu_tx, simulation_mcu_rx = multiprocessing.Pipe()
 
 # Flags (signals)
     # data_processing_process --> read_data_stream_process
@@ -192,7 +200,8 @@ def main():
               mcu_ready, start_data_extraction, frequency_sweep,
               current_id_rx,new_model_parameters_rx, bandwidth,
               input_register_shared_array, input_register_lock,
-              update_fpga_tx, new_user_input_rx,release_update_block)
+              update_fpga_tx, new_user_input_rx,release_update_block,
+              status, status_lock)
     )
     # w reading
     read_datastream_process = multiprocessing.Process(
@@ -208,14 +217,14 @@ def main():
               input_register_shared_array, input_register_lock,     # input_register shared memory
               bin_size, sample_rate, magnitude_samples_tx,
               current_id_tx, second_feature_shared_array,
-              second_feature_register_lock)
+              second_feature_register_lock, bandwidth, n_packages)
     )
 
     # communication
     communication_process = multiprocessing.Process(
         target=communication_process_target,
         args=(mcu_port, mcu_baud_rate, mcu_not_ready, mcu_ready,
-              update_fpga_rx)
+              update_fpga_rx, bandwidth)
     )
     # data training
     data_training_process = multiprocessing.Process(
@@ -223,6 +232,11 @@ def main():
         args=(magnitude_samples_rx,bandwidth,new_model_parameters_tx,
               frequency_plot_tx, temperature_plot_tx,magnitude_plot_tx, magnitude_data_updated)
     )
+    # # Simulation
+    # simulation_process = multiprocessing.Process(
+    #     target=simulation_process_target,
+    #     args=(simulation_datastream_tx, simulation_mcu_rx)
+    # )
 
 
 # Start processes
@@ -231,6 +245,7 @@ def main():
     data_processing_process.start()
     communication_process.start()
     data_training_process.start()
+    # simulation_process.start()
 
 # MAIN --> CONTROL AND GUI
 
@@ -251,11 +266,26 @@ def main():
                                   magnitude_data_updated):
         while True:
             if magnitude_data_updated.is_set():
+                magnitude_data_updated.clear()
                 frequency_to_plot = frequency_plot_rx.recv()
                 temperature_to_plot = temperature_plot_rx.recv()
                 magnitude_to_plot = magnitude_plot_rx.recv()
                 window.update_plot(frequency_to_plot, magnitude_to_plot)
 
+    def update_status(status, status_lock):
+        """Update status in GUI"""
+        while True:
+   
+            with status_lock:
+                if not status.empty():
+                    status_text = status.get()
+                    print("STATUS TEXT", status_text)
+                    window.status(status_text)
+                # else:
+                    
+                    # window.status("EMPTY")
+            time.sleep(2)
+        
 # Start GUI
     
     # GUI application
@@ -273,7 +303,10 @@ def main():
     plot = threading.Thread(target=update_plot,
                             args=(window,frequency_plot_rx, temperature_plot_rx, magnitude_plot_rx,
                                   magnitude_data_updated))
+    status_bar = threading.Thread(target=update_status,
+                                  args=(status, status_lock))
     plot.start()
+    status_bar.start()
     # Start the application event loop
     app.exec_()
     # sys.exit()
@@ -316,5 +349,17 @@ def main():
 
 
 if __name__=="__main__":
-    main()
+    import warnings
+    import traceback
+
+    warnings.filterwarnings("error", category=DeprecationWarning)
+
+    try:
+        # Run your code here
+    
+ 
+    # np.seterr(invalid='raise')
+        main()
+    except DeprecationWarning as e:
+        traceback.print_exc()
     

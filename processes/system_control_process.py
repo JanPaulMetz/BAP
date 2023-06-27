@@ -24,7 +24,7 @@ id_history_lock = threading.Lock()
 id_history = []
 
 new_model_params_lock = threading.Lock()
-new_model_params = [0.01*random.randint(0,100) for _ in range(10)]
+new_model_params = [0.01*random.randint(0,100) for _ in range(64)]
 
 id_list_approved = []
 id_list_approved_lock = multiprocessing.Lock()
@@ -33,101 +33,206 @@ id_list_not_empty = threading.Event()
 
 def system_control_thread_target(mcu_ready, model_params, model_params_lock, start_data_extraction,
                                  frequency_sweep, bandwidth, update_fpga_tx, input_register,
-                                 input_register_lock, new_user_input_rx,release_update_block):
+                                 input_register_lock, new_user_input_rx,release_update_block,
+                                 status, status_lock):
     """ Controls system, freq sweep etc"""
     id_found = False
+###############################################################################################
+    # def do_sweep(input_register,input_register_lock):
+    #     """ Doing frequency sweep"""
+    #     # Create frequencies
+    #     # print("HERE")
+    #     if bandwidth[0] == 0: # Log argument cant be 0
+    #         frequencies = np.logspace(np.log10(0.1), np.log10(bandwidth[1]),10)
+    #     else:
+    #         frequencies = np.logspace(np.log10(bandwidth[0]), np.log10(bandwidth[1]),10)
+        
+    #     for frequency in frequencies:
+    #         # Get new unique ID
+    #         print("FREQUENCY IN SWEEP", frequency)
+    #         id_list_not_empty.wait() # Wait till id_list is filled
+    #         with id_list_approved_lock:
+    #             # unique_id = 1
+    #             unique_id = [id_list_approved.pop(0)]
 
-    def do_sweep():
-        """ Doing frequency sweep"""
+    #         power = 1
+    #         freq2=0; freq3=0; freq4 = 0
+    #         amplitude = 1
+    #         other_amplitudes = 0
+    #         # Send new ID, frequencies, model params, amplitude = 1
+    #         with new_model_params_lock:
+    #             list_to_send = [unique_id, power, frequency, freq2, freq3, freq4, 
+    #                             amplitude, other_amplitudes, other_amplitudes, other_amplitudes] + new_model_params
+                
+    #             input_reg_content = [unique_id, frequency, freq2, freq3, freq4, 
+    #                                 amplitude, other_amplitudes, other_amplitudes, other_amplitudes]
+                
+    #             model_reg_content = new_model_params
+    #         # list_to_send = [unique_id, power, frequency, 0, 0, 1, 0, 0] + new_model_params
 
-        # Create frequencies
-        if bandwidth[0] == 0: # Log argument cant be 0
-            frequencies = np.logspace(np.log10(0.1), np.log10(bandwidth[1]))
-        else:
-            frequencies = np.logspace(np.log10(bandwidth[0]), np.log10(bandwidth[1]))
-
-        for frequency in frequencies:
-            # Get new unique ID
-
-            id_list_not_empty.wait() # Wait till id_list is filled
-            with id_list_approved_lock:
-                unique_id = [id_list_approved.pop(0)]
-
-            # Send new ID, frequencies, model params, amplitude = 1
-            list_to_send = [unique_id, temperature, frequency, 0, 0, 1, 0, 0] + new_model_params
-
-            # Update communication process
-            update_fpga_tx.send(list_to_send)
+    #         # Update communication process
+    #         update_fpga_tx.send(list_to_send)
             
-            # Update global input register
-            with input_register_lock:
-                input_register = np.append(input_register, list_to_send[0:7], axis=0)
+    #         # Update global input register
+    #         with input_register_lock:
+    #             input_register = np.append(input_register, input_reg_content, axis=0)
 
-            # Update global model parameters
-            with model_params_lock:
-                model_params = np.append(model_params, list_to_send[7:], axis=0)
+    #         # Update global model parameters
+    #         with model_params_lock:
+    #             model_params = np.append(model_params, model_reg_content, axis=0)
 
-            # Block untill ID is received back
-            while not id_found:
-                with id_history_lock:
+    #         # Block untill ID is received back
+    #         while not id_found:
+    #             with id_history_lock:
 
-                    # if sent id is received back
-                    if unique_id in id_history:
-                        # Find index
-                        index = id_history.index(unique_id)
+    #                 # if sent id is received back
+    #                 if unique_id in id_history:
+    #                     # Find index
+    #                     index = id_history.index(unique_id)
 
-                        # Remove all older values (so from index 0)
-                        for _ in range(index):
-                            id_history.pop(0)
+    #                     # Remove all older values (so from index 0)
+    #                     for _ in range(index):
+    #                         id_history.pop(0)
 
-                        id_found = True
+    #                     id_found = True
 
-                # Give system-state time to lock
-                time.sleep(0.2)
+    #             # Give system-state time to lock
+    #             time.sleep(0.2)
 
-            # reset for next iteration
-            id_found = False
+    #         # reset for next iteration
+    #         id_found = False
 
-        # Frequency sweep finished
-        frequency_sweep.clear()
-
+    #     # Frequency sweep finished
+    #     frequency_sweep.clear()
+#######################################################################################
     # If mcu is ready, start data extraction (thus whole system)
     mcu_ready.wait()
     start_data_extraction.set()
     # if frequency_sweep.is_set():
 
     # Initially perfomr frequency sweep
-    do_sweep()
+    with status_lock:
+        status.put("Initial sweep")
+    # do_sweep(input_register,input_register_lock)
     
     while True:
         
+        # Choose system state
         if frequency_sweep.is_set():
-            do_sweep()
+# Sweep
+            with status_lock:
+                status.put("Frequency sweep")
+            # Create frequencies
+            # print("HERE")
+            if bandwidth[0] == 0: # Log argument cant be 0
+                frequencies = np.logspace(np.log10(0.1), np.log10(bandwidth[1]),10)
+            else:
+                frequencies = np.logspace(np.log10(bandwidth[0]), np.log10(bandwidth[1]),10)
+        
+            for frequency in frequencies:
+                # Get new unique ID
+                print("FREQUENCY IN SWEEP", frequency)
+                id_list_not_empty.wait() # Wait till id_list is filled
+                with id_list_approved_lock:
+                    # unique_id = 1
+                    unique_id = [id_list_approved.pop(0)]
+
+                power = 1
+                freq2=0; freq3=0; freq4 = 0
+                amplitude = 1
+                other_amplitudes = 0
+                # Send new ID, frequencies, model params, amplitude = 1
+                with new_model_params_lock:
+                    list_to_send = unique_id + [power, frequency, freq2, freq3, freq4, 
+                                    amplitude, other_amplitudes, other_amplitudes, other_amplitudes] + new_model_params
+                    
+                    input_reg_content = unique_id + [frequency, freq2, freq3, freq4, 
+                                        amplitude, other_amplitudes, other_amplitudes, other_amplitudes]
+                    
+                    model_reg_content = unique_id + new_model_params
+                # list_to_send = [unique_id, power, frequency, 0, 0, 1, 0, 0] + new_model_params
+
+                # Update communication process
+                update_fpga_tx.send(list_to_send)
+                
+                # Update global input register
+                with input_register_lock:
+                    # for i in range(len(input_reg_content)):
+                    print("REG",input_reg_content)
+                    print("SHAPES ", input_register.shape, type(input_register), len(input_reg_content) , type(input_reg_content))
+                    input_reg_content = np.array(input_reg_content)
+                    input_reg_content = input_reg_content[np.newaxis,:]
+                    input_register = np.append(input_register, input_reg_content, axis=0)
+
+                # Update global model parameters
+                with model_params_lock:
+                    model_reg_content = np.array(model_reg_content)
+                    model_reg_content = model_reg_content[np.newaxis,:]
+                    model_params = np.append(model_params, model_reg_content, axis=0)
+
+                # Block untill ID is received back
+                while not id_found:
+                    with id_history_lock:
+
+                        # if sent id is received back
+                        if unique_id in id_history:
+                            # Find index
+                            index = id_history.index(unique_id)
+
+                            # Remove all older values (so from index 0)
+                            for _ in range(index):
+                                id_history.pop(0)
+
+                            id_found = True
+
+                    # Give system-state time to lock
+                    time.sleep(0.2)
+
+                # reset for next iteration
+                id_found = False
+
+            # Frequency sweep finished
+            frequency_sweep.clear()
+
+# User input            
         else:
+            with status_lock:
+                status.put("User input")
             # Get new user input and send to fpga
             while new_user_input_rx.poll():
                 # Only keep most new message (should be one)
-                # |freq1,freq2,freq3|amp1,amp2,amp3|
+                # |freq1,freq2,freq3, freq4|amp1,amp2,amp3, amp4|
                 user_input = new_user_input_rx.recv()
             
             if not new_user_input_rx.poll():
                 # If empty release update button block
                 release_update_block.set()
             
-            id_list_not_empty.wait() # Wait till id_list is filled
+            id_list_not_empty.wait() # Wait til id_list is filled
             with id_list_approved_lock:
                 unique_id = [id_list_approved.pop(0)]
 
+            # Get signal power: 
+            amplitudes = user_input[len(user_input)//2:]
+            power = [0.5*amplitude**2 for amplitude in amplitudes]
+            power = np.sum(power)
+            power = power.tolist()
             with new_model_params_lock:
                 # Send new ID, frequencies, model params, amplitude = 1
-                list_to_send = [unique_id] + user_input + new_model_params
+                list_to_send = unique_id + power + user_input + new_model_params
+                input_reg_content = unique_id + user_input
+                model_reg_content = unique_id + new_model_params
 
             # Update communication process
             update_fpga_tx.send(list_to_send)
 
             # Store sent list to input register
             with input_register_lock:
-                input_register = np.append(input_register, list_to_send, axis=0)
+                input_register = np.append(input_register, input_reg_content, axis=0)
+            
+            # Update global model parameters
+            with model_params_lock:
+                model_params = np.append(model_params, model_reg_content, axis=0)
 
         time.sleep(1)
 
@@ -161,7 +266,7 @@ def system_state_thread_target(current_id_rx, new_model_parameters_rx,
                     input_register = input_register[int(current_index_input_reg):]
 
             with model_parameters_lock:
-                print("Model params", model_parameters)
+                # print("Model params", model_parameters)
 
                 # First assume more then 1 row long
                 try:
@@ -170,7 +275,8 @@ def system_state_thread_target(current_id_rx, new_model_parameters_rx,
                 # Else try for 1 row long (All except 1 row can be deleted)
                 except:
                     current_index_model_params = np.where(model_parameters==current_id)[0]
-
+                    
+                print("DEBUG", np.shape(current_index_model_params),current_index_model_params)
                 if int(current_index_model_params) > 0:
                     model_parameters = model_parameters[int(current_index_model_params),:]
 
@@ -187,46 +293,51 @@ def id_generation_thread_target(input_register, input_register_lock):
     id_list = []
     list_size = 200
     while True:
-        
-        with id_list_approved_lock:
-            id_list = id_list_approved.copy()
-        # if list is not full
-        if len(id_list)<list_size:
-            # Generate ID 
-            random_id = random.randint(0, 2**14)
-
-            if random_id not in id_list:
-                id_list.append(random_id)
-        
-        # if id_list is full
-        if len(id_list)==list_size:
-            # Check if a id is already in the register:
-            indices_to_pop = []
-            with input_register_lock:
-                for i,id in enumerate(id_list):
-                    index = np.where(input_register[:,0]==id)[0]
-                    
-                    # if index nonzero, track index
-                    if index:
-                        indices_to_pop.append(i)
-
-            if indices_to_pop:
-                id_list.pop(indices_to_pop)
-            print("ID", id_list)
+        testing= True
+        if testing == True:
+            id_list_not_empty.set()
             with id_list_approved_lock:
-                id_list_approved = id_list.copy()
+                id_list_approved = [1,2,3,4,5,6,7,8,9,10]
+        else:
+            with id_list_approved_lock:
+                id_list = id_list_approved.copy()
+            # if list is not full
+            if len(id_list)<list_size:
+                # Generate ID
+                random_id = random.randint(0, 2**14)
 
-                if id_list_approved:
-                    id_list_not_empty.set()
-                else:
-                    id_list_not_empty.clear()
+                if random_id not in id_list:
+                    id_list.append(random_id)
+            
+            # if id_list is full
+            if len(id_list)==list_size:
+                # Check if a id is already in the register:
+                indices_to_pop = []
+                with input_register_lock:
+                    for i,id in enumerate(id_list):
+                        index = np.where(input_register[:,0]==id)[0]
+                        
+                        # if index nonzero, track index
+                        if index:
+                            indices_to_pop.append(i)
+
+                if indices_to_pop:
+                    id_list.pop(indices_to_pop)
+                print("ID", id_list)
+                with id_list_approved_lock:
+                    id_list_approved = id_list.copy()
+
+                    if id_list_approved:
+                        id_list_not_empty.set()
+                    else:
+                        id_list_not_empty.clear()
 
         time.sleep(0.5)
 
 
 def system_control_process_target(model_params, model_params_lock, mcu_ready, start_data_extraction,frequency_sweep,
                                   current_id_rx, new_model_parameters_rx, bandwidth, input_register, input_register_lock,
-                                  update_fpga_tx, new_user_input_rx,release_update_block):
+                                  update_fpga_tx, new_user_input_rx,release_update_block, status, status_lock):
     """ Target of a process object, starting multiple threads"""
 # Create threads
 
@@ -235,7 +346,8 @@ def system_control_process_target(model_params, model_params_lock, mcu_ready, st
                                       args=(mcu_ready,model_params,model_params_lock,
                                             start_data_extraction,frequency_sweep, bandwidth,
                                             update_fpga_tx, input_register, input_register_lock,
-                                            new_user_input_rx,release_update_block)
+                                            new_user_input_rx,release_update_block,
+                                            status, status_lock)
     )
     # State
     system_state_thread = threading.Thread(target=system_state_thread_target,

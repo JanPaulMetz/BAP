@@ -18,7 +18,7 @@ class MainWindow(QMainWindow):
         self.sweep_callback = sweep_callback
 
         # Set window title
-        self.setWindowTitle("GUI Example")
+        self.setWindowTitle("Magnitude data")
 
         # Create main widget and layout
         self.main_widget = QWidget(self)
@@ -35,12 +35,13 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.canvas)
 
         # Create text field
-        self.text_label = QLabel("Status:")
-        self.text_input = QLineEdit()
-        self.text_input.setReadOnly(True)
+        self.status_label = QLabel("Status:")
+        self.status_input = QLineEdit()
+        self.status_input.setReadOnly(True)
+
         text_layout = QHBoxLayout()
-        text_layout.addWidget(self.text_label)
-        text_layout.addWidget(self.text_input)
+        text_layout.addWidget(self.status_label)
+        text_layout.addWidget(self.status_input)
         self.layout.addLayout(text_layout)
 
         # Create labels and input fields
@@ -52,7 +53,7 @@ class MainWindow(QMainWindow):
         freq_layout = QHBoxLayout()
         amp_layout = QHBoxLayout()
 
-        for i in range(3):
+        for i in range(4):
             freq_label = QLabel("Frequency {}:".format(i + 1))
             freq_input = QLineEdit()
             self.freq_labels.append(freq_label)
@@ -112,3 +113,6 @@ class MainWindow(QMainWindow):
 
         # Update the canvas
         self.canvas.draw()
+    
+    def status(self,status):
+        self.status_input.setText(status)

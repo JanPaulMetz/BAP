@@ -1,4 +1,5 @@
 """ Communcation process implementing protocol """
+from math import ceil
 import time
 import threading
 import multiprocessing
@@ -7,7 +8,30 @@ from bitstring import BitArray
 import struct
 import numpy as np
 
-from data_processing_functions import create_frequency_vector
+# from data_processing_functions import create_frequency_vector
+from data_conversion import flatten, to_bytes, float_to_hex
+from data_processing_functions import *
+import itertools
+
+FP_SIZE = 16
+FP_DATA_BYTES = ceil(FP_SIZE/8)
+POLY_DIM = 10
+EXTRA_DIM = 5
+FREQ_DIM = 4
+
+# Struct of commands
+cmds = { "set_led": 0b01100001,
+        "request_amplitude": 0b01100010,
+        "param_frequencies": 0b01100011,
+        "param_polynomial_features": 0b01100100,
+        "param_extra_feature": 0b01100101,
+        "param_magnitude_weights": 0b01100110,
+        "param_phase_weights": 0b01100111,
+        "param_phasor_magnitude": 0b01101000,
+        "param_phasor_phase": 0b01101001,
+        "param_model_id": 0b01101010,
+        "update_model" : 0b01101001
+        }
 
 class Communication:
     # 2 bytes
@@ -81,77 +105,119 @@ class Communication:
 
     def led_cmd(self):
         """ when "01100001" =>  -- CMD: RX_LED                  [ascii: a] --> on/off """
-        cmd = "a"
-        self.mcu_serial.write(cmd.encode("utf-8"))
+        # Toggle
+        cmd = 97
+        self.mcu_serial.write(bytes([cmds["set_led"]]))
 
-    def amplitude(self):
+    def amplitude(self): # Not used!
         """ when "01100010" =>  -- CMD: TX_AMPLITUDE            [ascii: b] -->"""
-        cmd = "b"
-        self.mcu_serial.write(cmd.encode("utf-8"))
+        cmd =  98#"b"
+        self.mcu_serial.write(bytes([cmd])) #cmd.encode("utf-8")
 
-    def frequencies(self, frequencies):
+
+
+    def frequencies(self, frequencies): # 4 Frequencies --> phase increase per sample (NOT NORMALIZED)
         """ when "01100011" =>  -- CMD: RX frequencies          [ascii: c] --> 4 bytes per frequency (tot 12 bytes)"""
-        cmd = "c"
-        self.mcu_serial.write(cmd.encode("utf-8"))
-
-        for frequency in frequencies:
-            # Send frequency as 4 bytes (float --> 4 bytes)
-            frequency_bytes = struct.pack('f', frequency)
-            self.mcu_serial.write(frequency_bytes)        
-
-    def polynomial_features(self):
-        """ when "01100100" =>  -- CMD: RX polynomial_features  [ascii: d]  --> """
-        cmd = "d"
-        self.mcu_serial.write(cmd.encode("utf-8"))
-
-    def extra_feature(self):
-        """ when "01100101" =>  -- CMD: RX extra_feature        [ascii: e] --> 2 bytes """
-        cmd = "e"
-        self.mcu_serial.write(cmd.encode("utf-8"))
-
-    def magnitude_weights(self):
-        """ when "01100110" =>  -- CMD: RX magnitude_weights    [ascii: f] --> 50 weights 2bytes per weight"""
-        cmd = "f"
-        self.mcu_serial.write(cmd.encode("utf-8"))
-
-    def phasor_magnitude(self, frequencies, current_model_params, user_input_amplitudes):
-        """ when "01101000" =>  -- CMD: RX phasor_magnitude     [ascii: h] --> 2 bytes per magnitude (tot 6) """
-        cmd = "h"
-        amplitudes = user_input_amplitudes
-        # calculate phasor magnitude
-        model_magnitude_list = []
-        for frequency in frequencies:
-            # Get frequency polynomials
-            frequency_vector = create_frequency_vector(frequency)
-            # get magnitude from model
-            model_magnitude = np.dot(current_model_params, frequency_vector)
-
-            model_magnitude_list.append(model_magnitude)
+        cmd = 99 #"c"
+        self.mcu_serial.write(bytes([cmd]))
         
-        system_input_magnitude = [amplitudes[i]/model_magnitude_list[i] for i in range(len(amplitudes))]
+        phase_incr = []
+        for frequency in frequencies:
+            phase_incr.append((frequency*2**32)/(100e6))
 
-        # float --> 2 bytes
-        short_data = [struct.pack('h', int(system_input_magnitude[i]*100)) for i in range(len(amplitudes))]
+        raw_data = [float_to_hex(a, FP_SIZE) for a in flatten(phase_incr)]
+        byte_array = bytes([cmds['param_frequencies']] + flatten([to_bytes(i, 2) for i in raw_data]))
+        self.mcu_serial.write(byte_array)
 
-        # Encode
-        self.mcu_serial.write(cmd.encode("utf-8"))
+        # for frequency in frequencies:
+        #     # Send frequency as 4 bytes (float --> 4 bytes)
+        #     frequency_bytes = struct.pack('f', frequency)
+        #     self.mcu_serial.write(frequency_bytes)
+        
+    def polynomial_features(self, frequencies, bandwidth): # [1, f , f^2 ....] NORMALIZED
+        """ when "01100100" =>  -- CMD: RX polynomial_features  [ascii: d]  --> """
+        # TEST cmd = 100 #"d"
+        # Normalize frequencies and create vector [[1,f_norm, f_norm^2 ... f_norm^7], [...],[...],[..]]
+        frequencies_vector_normalized = []
+        for frequency in frequencies:
+            # print("FREQ", frequency, type(frequency))
+            frequencies_vector_normalized.append(create_feature_vector_normalized(frequency,bandwidth))
+            
 
-        for i in range(len(amplitudes)):
-            self.mcu_serial.write(short_data[i])
+        raw_data = [float_to_hex(a, FP_SIZE) for a in flatten(frequencies_vector_normalized)]
+        byte_array = bytes([cmds['param_polynomial_features']] + flatten([to_bytes(i, 2) for i in raw_data]))
+        
+        self.mcu_serial.write(byte_array)
 
+    def extra_feature(self, power):
+        """ when "01100101" =>  -- CMD: RX extra_feature        [ascii: e] --> 2 bytes """
+        byte_array = bytes([cmds["param_extra_feature"] + flatten([to_bytes(power,2)])])
+        self.mcu_serial.write(byte_array)
 
+    # TODO: cast to 2 bytes per weight
+    def magnitude_weights(self, weights):
+        """ when "01100110" =>  -- CMD: RX magnitude_weights    [ascii: f] --> 50 weights 2bytes per weight"""
+        # self.mcu_serial.write(bytes([cmd]))
+        # weights = [to_bytes(weight, 2) for weight in weights]
+        print("WEIGHTS", weights)
+        raw_data = [float_to_hex(weight, FP_SIZE) for weight in flatten(weights)]
+        byte_array = bytes([cmds["param_magnitude_weights"]] + flatten([to_bytes(element, 2) for element in raw_data]))
+        self.mcu_serial.write(byte_array)
+
+    def phasor_magnitude(self, amplitudes, frequencies, power, model_parameters, bandwidth):
+        """ when "01101000" =>  -- CMD: RX phasor_magnitude     [ascii: h] --> 2 bytes per magnitude (tot 6) """
+        # cmd = 104 #"h"
+        # Calculate X_hat (magnitude that is on the ultrasound input)
+        # Normalize frequencies and create vector [1,f_norm, f_norm^2 ... f_norm^7]
+        frequencies_vector_normalized = []
+        for frequency in frequencies:
+            frequencies_vector_normalized.append(create_feature_vector_normalized(frequency,bandwidth))
+
+        power_vector_normalized = create_feature_vector_normalized(power,bandwidth)
+
+        X_hat_list = []
+        for i, frequency_vector in enumerate(frequencies_vector_normalized):
+            # multiply each element of power to the frequencies array
+            # print("FREQ vector", frequency_vector)
+            product_list = [[power_element*frequency_element for frequency_element in frequency_vector]for power_element in power_vector_normalized]
+            flattened_product_list = list(itertools.chain(*product_list))
+
+            # weights*product list (as dot operation) should result in scalar
+            product_arr = np.array(flattened_product_list)
+            # print("SIZES", product_arr.shape, np.shape(product_list), product_list)
+            abs_H = np.dot(model_parameters, product_arr)
+
+            X_hat_list.append(amplitudes[i]/abs_H)
+        self.mcu_serial.write(bytes(cmds["param_phasor_magnitude"]))
+
+        # TODO: convert to 8 bytes (2bytes each) assumption float
+        raw_data = [float_to_hex(X_hat, FP_SIZE) for X_hat in flatten(X_hat_list)]
+        byte_array = bytes([cmds["param_phasor_magnitude"]] + flatten([to_bytes(element,2) for element in raw_data]))
+        self.mcu_serial.write(byte_array) # Send list of magnitudes as packets of bytes (total 4*2 bytes)
 
     def model_id(self, id):
         """ when "01101010" =>  -- CMD: RX model_id             [ascii: j] --> 2 bytes """
-        cmd = "j"
-        id_bytes = struct.pack('h', int(id*100))
-        self.mcu_serial.write(cmd.encode("utf-8"))
-        self.mcu_serial.write(id_bytes)
+        cmd = 106 # "j"
+        raw_data = [float_to_hex(id, FP_SIZE)]
+        byte_array = bytes([cmds["param_model_id"]] + flatten([to_bytes(id,2)]))
+
+        self.mcu_serial.write(byte_array)
 
     def update_model(self):
         """ when "01101011" =>  -- CMD: Update Model            [ascii: k] """
-        cmd = "k"
-        self.mcu_serial.write(cmd.encode("utf-8"))
+        # cmd = 105 # "k"
+        self.mcu_serial.write(bytes([cmds['update_model']]))
+
+    # TODO: Communication with controller
+    def calibrate_quadrature_point(self):
+        """ Calibrate quadrature point """
+        cmd = 103
+        # Send q-point start command
+        self.mcu_serial.write([cmd])
+
+        # Wait for response
+        # while
+        # 
 
 def handshake_thread_target(mcu_serial, mcu_not_ready, mcu_ready):
     """ Performs handshake at startup, if it fails exit program"""
@@ -237,13 +303,10 @@ def communication_thread_target(mcu_serial, mcu_ready):
         mcu_serial.write(UPDATE_MODEL)
         time.sleep(1)
         mcu_serial.write(RX_LED)
-        
-        
-    
 
 
 def communication_process_target(port, baud_rate, mcu_not_ready, mcu_ready,
-                                 update_fpga_rx):
+                                 update_fpga_rx, bandwidth):
 # Create communication
     mcu_communication = Communication(baud_rate,port,mcu_ready,mcu_not_ready, update_fpga_rx)
 
@@ -253,39 +316,48 @@ def communication_process_target(port, baud_rate, mcu_not_ready, mcu_ready,
 # Handshake
     mcu_communication.handshake()
 
-    # Create threads
-    # # Startup handshake
-    # handshake_thread = threading.Thread(
-    #     target=handshake_thread_target        ,
-    #     args=(mcu_serial,mcu_not_ready, mcu_ready)
-    # )
-    # Communication handler
-    # communication_thread = threading.Thread(
-    #     target=communication_thread_target,
-    #     args=(mcu_serial,mcu_ready)
-    # )
-
-# Start threads
-    # handshake_thread.start()
-    # communication_thread.start()
-
     while True:
 
         # If there is content in the pipe
         if update_fpga_rx.poll():
             content_to_send = update_fpga_rx.recv()
+            print("UPDATE FPGA", len(content_to_send))
             # GEt id
+            # TODO: Why 1:7
             model_id = content_to_send[0]
-            # Get frequencies
-            frequencies = content_to_send[1:7]
-            # Get model params
-            model_params = content_to_send[7:12]
-            # Get amplitudes
-            amplitudes = content_to_send[12:]
+            print("model_id SHAPE", model_id)
 
+            sec_feature = content_to_send[1]
+            print("sec_feature SHAPE", sec_feature)
+            # Get frequencies
+            frequencies = content_to_send[2:6]
+            print("frequencies SHAPE", frequencies)
+            # Get amplitudes
+            amplitudes = content_to_send[6:10]
+            print("modamplitudesel_id SHAPE", amplitudes)
+            # Get model params
+            model_params = content_to_send[10:]
+            print("model_params SHAPE", len(model_params))
+            
+
+            # Test poly features
+            # polynomial_features = [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            #            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+            #            [3, 3, 3, 3, 3, 3, 3, 3, 3, 3]]
+            frequencies = [3,4,2,1]
             # Send ID
+            mcu_communication.led_cmd()
+            mcu_communication.polynomial_features(frequencies, bandwidth)
             mcu_communication.model_id(model_id)
-            # Send phasor magnitude
-            mcu_communication.phasor_magnitude(frequencies,model_params,amplitudes)
-            # Update
+            mcu_communication.frequencies(frequencies)
+            mcu_communication.magnitude_weights(model_params)
+            mcu_communication.phasor_magnitude(amplitudes, frequencies, sec_feature, model_params, bandwidth)
+            #amplitudes, frequencies, power, model_parameters, bandwidth
+
+
+            # # Send phasor magnitude
+            # mcu_communication.phasor_magnitude(frequencies,model_params,amplitudes)
+            # Send frequencies 
+            
+            # # Update
             mcu_communication.update_model()
