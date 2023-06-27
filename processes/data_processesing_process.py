@@ -117,7 +117,7 @@ def get_data_thread_target(data_to_process_rx, start_data_extraction,
             # system_output_data = system_output_data_local.copy()
             
             system_output_data = [ID_decimals, extra_feature_decimals, position_decimals]
-            print("SHAPE DATA", system_output_data, np.shape(system_output_data))
+            # print("SHAPE DATA", system_output_data, np.shape(system_output_data))
         
         # Trigger calculate fft thread
         trigger_calculate_fft.set()

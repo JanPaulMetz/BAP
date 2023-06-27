@@ -14,9 +14,12 @@ def get_system_input_phasor(input_magnitude, model_magnitude):
         system_magnitude = input_magnitude/model_magnitude
     return system_magnitude
 
-def normalize(feature, range):
-        """ Functiona that is normalizing"""
+def normalize_old(feature, range):
+        """ Function that is normalizing"""
         return 1.275 + (1.25 + (feature - (range[0] + range[1])/2) / ((range[1] - range[0])/2))
+
+def normalize(feature, range):
+     return 0.725*((feature- (range[0] + range[1])/2 )/((range[1]-range[0])/2) + 1.275)
 
 def create_feature_vector_normalized(feature, feature_range):
     """ Creates frequency vector 
@@ -24,8 +27,11 @@ def create_feature_vector_normalized(feature, feature_range):
     """
     size = 8
     # feature_vector = np.zeros(size)
-    feature_vector = [feature**i for i in range(size)]
-    feature_vector_normalized = [normalize(feature, feature_range) for feature in feature_vector]
+    feature_normalized = normalize(feature, feature_range)
+    feature_vector_normalized = [feature_normalized**i for i in range(size)]
+
+    # feature_vector = [feature**i for i in range(size)]
+    # feature_vector_normalized = [normalize(feature, feature_range) for feature in feature_vector]
 
     # for i in range(size):
     #     feature_vector[i] = feature**i
@@ -44,3 +50,6 @@ def get_fft_index(frequency, sample_rate, bin_size):
     bin_number = np.round(bin_number)
 
     return bin_number
+
+
+# print(create_feature_vector_normalized(1.6e6, [1.575e6, 1.625e6]))

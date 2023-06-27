@@ -47,7 +47,7 @@ class SineFit:
         else:
             df = pd.read_csv(self.filename)
             self.wavelength = df['Timestamp'].to_numpy()
-            self.data = df['Data'].to_numpy()  
+            self.data = df['Data'].to_numpy()
         
         self.frequency_init_list = []
     

@@ -51,9 +51,12 @@ def main():
     model_params_filename = "model_parameters.bin"
     model_params_lock = multiprocessing.Lock()
     model_params_numcols = 65
-    default_params = np.random.rand(1,model_params_numcols)
+    default_params = np.zeros((1,model_params_numcols)) #np.random.rand(1,model_params_numcols)
+    print("SHAPE", default_params.shape)
     # Make test params
-    default_params[0,0] = 2
+    # default_params[0,0] = 1
+    default_params[0,0] = 2 # ID = 0
+    default_params[0,1] = 1 # First weight = 1
     tes_params1 = default_params.copy()
     
     # default_params[0,0] = 0.4722900390625
@@ -92,6 +95,9 @@ def main():
 
     default_input = np.random.rand(1,input_register_numcols)
     default_input[0][0] = 7738
+    default_input1 = default_input.copy()
+    default_input[0][0] = 1333
+    default_input2 = default_input.copy()
     # default_input[0,0] = 0.4722900390625
 
     with open(input_register_filename, mode="w+b") as file:
@@ -107,7 +113,8 @@ def main():
                                                  dtype=np.float64, buffer=input_register_mmaped_file)
         
         # Append default input
-        input_register_shared_array = np.append(input_register_shared_array, default_input, axis=0)
+        input_register_shared_array = np.append(input_register_shared_array, default_input1, axis=0)
+        input_register_shared_array = np.append(input_register_shared_array, default_input2, axis=0)
         
         # Close mmaped file
         input_register_mmaped_file.close()

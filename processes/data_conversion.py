@@ -46,10 +46,10 @@ def std_logic_vector(value, size):
 
 
 def to_bytes(data, byte_count=FP_DATA_BYTES):
-    fmt = { 1: "B",
-            2: 'H',
-            4: 'I',
-            8: 'Q'}
+    fmt = { 1: "b",
+            2: 'h',
+            4: 'i',
+            8: 'q'}
     assert byte_count in fmt.keys()
     return list(struct.unpack(str(byte_count)+'B', struct.pack('>'+fmt[byte_count], data)))
 
